@@ -1,8 +1,23 @@
+import com.android.build.api.variant.BuildConfigField
+import java.util.Properties
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
 }
+
+val localProperties =
+  Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+      file.inputStream().use(::load)
+    }
+  }
+
+fun localProperty(name: String, defaultValue: String = ""): String = localProperties.getProperty(name, defaultValue)
+
+fun buildConfigString(value: String): String = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "com.example.beforemealsignal"
@@ -28,7 +43,7 @@ android {
     buildFeatures {
       compose = true
       aidl = false
-      buildConfig = false
+      buildConfig = true
       shaders = false
     }
 
@@ -37,6 +52,28 @@ android {
         excludes += "/META-INF/{AL2.0,LGPL2.1}"
       }
     }
+}
+
+androidComponents {
+  onVariants { variant ->
+    val buildConfigFields = checkNotNull(variant.buildConfigFields)
+    buildConfigFields.put(
+      "NEIS_API_KEY",
+      BuildConfigField("String", buildConfigString(localProperty("NEIS_API_KEY")), "NEIS Open API key"),
+    )
+    buildConfigFields.put(
+      "NEIS_OFFICE_CODE",
+      BuildConfigField("String", buildConfigString(localProperty("NEIS_OFFICE_CODE")), "NEIS education office code"),
+    )
+    buildConfigFields.put(
+      "NEIS_SCHOOL_CODE",
+      BuildConfigField("String", buildConfigString(localProperty("NEIS_SCHOOL_CODE")), "NEIS school code"),
+    )
+    buildConfigFields.put(
+      "NEIS_MEAL_CODE",
+      BuildConfigField("String", buildConfigString(localProperty("NEIS_MEAL_CODE")), "NEIS meal code"),
+    )
+  }
 }
 
 kotlin {
@@ -52,6 +89,7 @@ dependencies {
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.activity.compose)
+  implementation(libs.kotlinx.serialization.json)
 
   // Arch Components
   implementation(libs.androidx.lifecycle.runtime.compose)
