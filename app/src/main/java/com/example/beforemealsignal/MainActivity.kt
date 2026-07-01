@@ -8,15 +8,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.example.beforemealsignal.data.DataRepository
+import com.example.beforemealsignal.data.NeisConfig
+import com.example.beforemealsignal.data.NeisMealRepository
 import com.example.beforemealsignal.theme.BeforeMealSignalTheme
 
 class MainActivity : ComponentActivity() {
+  private val dataRepository: DataRepository by lazy {
+    NeisMealRepository(config = NeisConfig.fromBuildConfig())
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
     enableEdgeToEdge()
     setContent {
-      BeforeMealSignalTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
+      BeforeMealSignalTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation(dataRepository = dataRepository) } }
     }
   }
 }
