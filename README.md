@@ -26,6 +26,19 @@
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
 ```
 
+## NEIS 로컬 설정
+
+NEIS 인증키와 학교 코드는 Git에 올라가지 않는 `local.properties`에만 둡니다.
+
+```properties
+NEIS_API_KEY=발급받은_인증키
+NEIS_OFFICE_CODE=B10
+NEIS_SCHOOL_CODE=7010536
+NEIS_MEAL_CODE=2
+```
+
+값이 비어 있어도 앱은 빌드되며, 실행 시 NEIS 설정 필요 상태로 빈 주간 식단을 표시합니다.
+
 ## APK 산출물
 
 빌드 후 다음 파일이 생성됩니다.
