@@ -4,142 +4,142 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
 interface DataRepository {
-  val dashboard: Flow<FoodSignalDashboard>
+  val dashboard: Flow<MealSignalDashboard>
 }
 
 class DefaultDataRepository : DataRepository {
-  override val dashboard: Flow<FoodSignalDashboard> = flowOf(sampleDashboard)
+  override val dashboard: Flow<MealSignalDashboard> = flowOf(sampleDashboard)
 }
 
-data class FoodSignalDashboard(
-  val profile: DietProfile,
-  val quickActions: List<QuickAction>,
-  val foods: List<FoodSignal>,
-  val staffPrompt: String,
+data class MealSignalDashboard(
+  val profile: StudentProfile,
+  val weekLabel: String,
+  val sourceLabel: String,
+  val allergenOptions: List<String>,
+  val weekMeals: List<MealDay>,
+  val reportTargets: List<ReportTarget>,
 )
 
-data class DietProfile(
-  val allergens: List<String>,
-  val dietTags: List<String>,
-  val spicyTolerance: Int,
-)
-
-data class QuickAction(
-  val title: String,
-  val description: String,
-  val state: SignalTone,
-)
-
-data class FoodSignal(
+data class StudentProfile(
   val name: String,
-  val brand: String,
-  val category: String,
-  val source: String,
-  val updatedAt: String,
-  val confidence: String,
-  val headline: String,
-  val summary: String,
-  val riskLevel: RiskLevel,
-  val matchedAllergens: List<String>,
-  val possibleAllergens: List<String>,
-  val spicyLevel: Int,
-  val cautionTags: List<String>,
-  val recommendedAction: String,
+  val classLabel: String,
+  val allergens: Set<String>,
+  val spicyTolerance: Int,
+  val streakDays: Int,
+  val reportCount: Int,
 )
 
-enum class RiskLevel {
-  High,
-  Check,
-  Low,
-}
+data class MealDay(
+  val dateLabel: String,
+  val fullDateLabel: String,
+  val mealType: String,
+  val dayBadge: String,
+  val isToday: Boolean,
+  val menuItems: List<MealItem>,
+)
 
-enum class SignalTone {
-  Danger,
-  Warning,
-  Safe,
-  Info,
-}
+data class MealItem(
+  val name: String,
+  val allergens: Set<String> = emptySet(),
+  val spicyLevel: Int = 0,
+  val isEstimated: Boolean = false,
+)
 
-private val sampleDashboard =
-  FoodSignalDashboard(
+data class ReportTarget(
+  val menuName: String,
+  val description: String,
+)
+
+val sampleDashboard =
+  MealSignalDashboard(
     profile =
-      DietProfile(
-        allergens = listOf("우유", "대두", "새우"),
-        dietTags = listOf("매운맛 약함", "카페인 민감", "주문 전 확인"),
+      StudentProfile(
+        name = "김민준",
+        classLabel = "2학년 3반",
+        allergens = setOf("계란", "우유"),
         spicyTolerance = 1,
+        streakDays = 7,
+        reportCount = 12,
       ),
-    quickActions =
+    weekLabel = "6월 29일 - 7월 3일",
+    sourceLabel = "NEIS 연동 샘플",
+    allergenOptions = listOf("계란", "우유", "새우", "땅콩", "밀", "메밀", "대두", "돼지고기"),
+    weekMeals =
       listOf(
-        QuickAction("제품/메뉴 검색", "제품명, 메뉴명, 브랜드로 확인", SignalTone.Info),
-        QuickAction("바코드·식품QR", "공식 표시 데이터를 우선 조회", SignalTone.Safe),
-        QuickAction("성분표 촬영", "OCR 실험 기능, 결과는 확인 필요", SignalTone.Warning),
+        MealDay(
+          dateLabel = "월 6/29",
+          fullDateLabel = "6월 29일 월요일",
+          mealType = "중식",
+          dayBadge = "✓",
+          isToday = false,
+          menuItems =
+            listOf(
+              MealItem("현미밥"),
+              MealItem("미역국"),
+              MealItem("돈까스", allergens = setOf("밀", "돼지고기")),
+              MealItem("양배추샐러드"),
+            ),
+        ),
+        MealDay(
+          dateLabel = "오늘 6/30",
+          fullDateLabel = "6월 30일 화요일",
+          mealType = "중식",
+          dayBadge = "화",
+          isToday = true,
+          menuItems =
+            listOf(
+              MealItem("잡곡밥"),
+              MealItem("된장찌개", allergens = setOf("대두"), spicyLevel = 1),
+              MealItem("제육볶음", allergens = setOf("돼지고기"), spicyLevel = 2, isEstimated = true),
+              MealItem("계란찜", allergens = setOf("계란")),
+              MealItem("배추김치", spicyLevel = 1),
+            ),
+        ),
+        MealDay(
+          dateLabel = "수 7/1",
+          fullDateLabel = "7월 1일 수요일",
+          mealType = "중식",
+          dayBadge = "3",
+          isToday = false,
+          menuItems =
+            listOf(
+              MealItem("흰밥"),
+              MealItem("어묵국", allergens = setOf("밀")),
+              MealItem("새우튀김", allergens = setOf("새우", "밀")),
+              MealItem("깍두기", spicyLevel = 1),
+            ),
+        ),
+        MealDay(
+          dateLabel = "목 7/2",
+          fullDateLabel = "7월 2일 목요일",
+          mealType = "중식",
+          dayBadge = "4",
+          isToday = false,
+          menuItems =
+            listOf(
+              MealItem("카레라이스", allergens = setOf("밀"), spicyLevel = 1),
+              MealItem("요구르트", allergens = setOf("우유")),
+              MealItem("오이무침"),
+            ),
+        ),
+        MealDay(
+          dateLabel = "금 7/3",
+          fullDateLabel = "7월 3일 금요일",
+          mealType = "중식",
+          dayBadge = "5",
+          isToday = false,
+          menuItems =
+            listOf(
+              MealItem("김치볶음밥", spicyLevel = 2),
+              MealItem("콩나물국", allergens = setOf("대두")),
+              MealItem("바나나"),
+            ),
+        ),
       ),
-    foods =
+    reportTargets =
       listOf(
-        FoodSignal(
-          name = "참치마요 삼각김밥",
-          brand = "편의점 PB",
-          category = "가공식품",
-          source = "식품QR/제조사 제공 성분",
-          updatedAt = "2026.06.24",
-          confidence = "공식 데이터",
-          headline = "섭취 전 확인 필요",
-          summary = "등록한 우유·대두 알레르기와 충돌하는 원재료가 표시되어 있습니다.",
-          riskLevel = RiskLevel.High,
-          matchedAllergens = listOf("우유", "대두"),
-          possibleAllergens = listOf("밀"),
-          spicyLevel = 0,
-          cautionTags = listOf("공식 정보 기준", "교차오염 가능성 확인"),
-          recommendedAction = "대체 제품을 찾거나 제조사 표시를 다시 확인하세요.",
-        ),
-        FoodSignal(
-          name = "마라탕 2단계",
-          brand = "동네 중식당",
-          category = "음식점 메뉴",
-          source = "메뉴명/사용자 평가 기반 추정",
-          updatedAt = "2026.06.18",
-          confidence = "추정 정보",
-          headline = "정보 부족",
-          summary = "공식 성분표가 없어 새우·대두 포함 가능성을 낮은 신뢰도로 표시합니다.",
-          riskLevel = RiskLevel.Check,
-          matchedAllergens = emptyList(),
-          possibleAllergens = listOf("새우", "대두"),
-          spicyLevel = 4,
-          cautionTags = listOf("매운맛 약한 사용자 주의", "직원 확인 권장"),
-          recommendedAction = "주문 전 육수와 소스 원재료를 직원에게 확인하세요.",
-        ),
-        FoodSignal(
-          name = "오트 라떼",
-          brand = "프랜차이즈 카페",
-          category = "프랜차이즈",
-          source = "브랜드 알레르겐 안내",
-          updatedAt = "2026.06.20",
-          confidence = "브랜드 제공",
-          headline = "확인 필요",
-          summary = "우유 대체 옵션이지만 같은 제조 공간의 우유 접촉 가능성이 표시되어 있습니다.",
-          riskLevel = RiskLevel.Check,
-          matchedAllergens = emptyList(),
-          possibleAllergens = listOf("우유"),
-          spicyLevel = 0,
-          cautionTags = listOf("카페인 확인", "교차오염 가능성"),
-          recommendedAction = "카페인 제한과 제조 도구 분리 여부를 확인하세요.",
-        ),
-        FoodSignal(
-          name = "두부 샐러드 볼",
-          brand = "샐러드 프랜차이즈",
-          category = "프랜차이즈",
-          source = "브랜드 공식 메뉴 데이터",
-          updatedAt = "2026.06.22",
-          confidence = "공식 데이터",
-          headline = "주의 낮음",
-          summary = "등록 알레르겐과 직접 충돌하는 표시 정보는 없습니다. 소스 원재료는 주문 전 확인하세요.",
-          riskLevel = RiskLevel.Low,
-          matchedAllergens = emptyList(),
-          possibleAllergens = listOf("대두"),
-          spicyLevel = 1,
-          cautionTags = listOf("정보 없음은 안전 보장 아님", "소스 별도 확인"),
-          recommendedAction = "소스 제외 또는 대체 소스 선택이 안전합니다.",
-        ),
+        ReportTarget("제육볶음", "오늘 급식에서 체감 매운맛을 알려주세요."),
+        ReportTarget("된장찌개", "국물의 매운맛이나 알레르기 표시를 보완해 주세요."),
+        ReportTarget("계란찜", "계란 알레르기 표시가 맞는지 확인해 주세요."),
       ),
-    staffPrompt = "우유, 대두, 새우 알레르기가 있습니다. 이 메뉴에 해당 성분이나 같은 조리 도구 접촉 가능성이 있나요?",
   )

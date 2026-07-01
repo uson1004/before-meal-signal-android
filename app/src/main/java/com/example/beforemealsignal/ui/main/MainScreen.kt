@@ -1,12 +1,14 @@
 package com.example.beforemealsignal.ui.main
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,18 +19,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,8 +35,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -46,13 +51,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.example.beforemealsignal.data.DefaultDataRepository
-import com.example.beforemealsignal.data.DietProfile
-import com.example.beforemealsignal.data.FoodSignal
-import com.example.beforemealsignal.data.FoodSignalDashboard
-import com.example.beforemealsignal.data.QuickAction
-import com.example.beforemealsignal.data.RiskLevel
-import com.example.beforemealsignal.data.SignalTone
+import com.example.beforemealsignal.data.MealDay
+import com.example.beforemealsignal.data.MealItem
+import com.example.beforemealsignal.data.ReportTarget
+import com.example.beforemealsignal.data.sampleDashboard
 import com.example.beforemealsignal.theme.BeforeMealSignalTheme
+import com.example.beforemealsignal.theme.MealDesignTokens
 
 @Composable
 fun MainScreen(
@@ -66,8 +70,18 @@ fun MainScreen(
     is MainScreenUiState.Success ->
       MainScreen(
         state = current.state,
-        onQueryChange = viewModel::onQueryChange,
-        onFoodSelected = viewModel::onFoodSelected,
+        onAllergenToggled = viewModel::onAllergenToggled,
+        onSpicyToleranceSelected = viewModel::onSpicyToleranceSelected,
+        onStartOnboarding = viewModel::onStartOnboarding,
+        onSkipOnboarding = viewModel::onSkipOnboarding,
+        onTabSelected = viewModel::onTabSelected,
+        onDaySelected = viewModel::onDaySelected,
+        onReportSpicySelected = viewModel::onReportSpicySelected,
+        onReportAllergenToggled = viewModel::onReportAllergenToggled,
+        onPhotoToggle = viewModel::onPhotoToggle,
+        onSubmitReport = viewModel::onSubmitReport,
+        onEditProfile = viewModel::onEditProfile,
+        onNotificationsToggle = viewModel::onNotificationsToggle,
         modifier = modifier,
       )
     is MainScreenUiState.Error -> ErrorScreen(current.throwable, modifier)
@@ -76,423 +90,883 @@ fun MainScreen(
 
 @Composable
 internal fun MainScreen(
-  state: FoodSignalScreenState,
-  onQueryChange: (String) -> Unit,
-  onFoodSelected: (FoodSignal) -> Unit,
+  state: MealSignalScreenState,
+  onAllergenToggled: (String) -> Unit = {},
+  onSpicyToleranceSelected: (Int) -> Unit = {},
+  onStartOnboarding: () -> Unit = {},
+  onSkipOnboarding: () -> Unit = {},
+  onTabSelected: (MealTab) -> Unit = {},
+  onDaySelected: (Int) -> Unit = {},
+  onReportSpicySelected: (Int) -> Unit = {},
+  onReportAllergenToggled: (String) -> Unit = {},
+  onPhotoToggle: () -> Unit = {},
+  onSubmitReport: () -> Unit = {},
+  onEditProfile: () -> Unit = {},
+  onNotificationsToggle: () -> Unit = {},
   modifier: Modifier = Modifier,
 ) {
+  if (state.local.showOnboarding) {
+    OnboardingScreen(
+      state = state,
+      onAllergenToggled = onAllergenToggled,
+      onSpicyToleranceSelected = onSpicyToleranceSelected,
+      onStart = onStartOnboarding,
+      onSkip = onSkipOnboarding,
+      modifier = modifier,
+    )
+    return
+  }
+
   Scaffold(
-    containerColor = SignalColors.Background,
-    bottomBar = { SignalBottomBar() },
+    containerColor = MealColors.Background,
+    bottomBar = { MealBottomBar(activeTab = state.local.activeTab, onTabSelected = onTabSelected) },
     modifier = modifier.fillMaxSize(),
   ) { innerPadding ->
-    LazyColumn(
-      modifier = Modifier.fillMaxSize().padding(innerPadding),
-      contentPadding = PaddingValues(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 24.dp),
-      verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-      item { ProductHeader(state.dashboard.profile) }
-      item { SearchAndActionPanel(state.dashboard.quickActions, state.query, onQueryChange) }
-      item { ProfileSummaryCard(state.dashboard.profile) }
-      item { SectionTitle("최근 확인한 식품·메뉴", "공식 데이터와 추정 정보를 구분해서 표시합니다.") }
-      if (state.filteredFoods.isEmpty()) {
-        item { EmptyResultCard(state.query) }
-      } else {
-        items(state.filteredFoods, key = { it.name }) { food ->
-          FoodResultCard(
-            food = food,
-            selected = food.name == state.selectedFood?.name,
-            onClick = { onFoodSelected(food) },
-          )
-        }
-      }
-      state.selectedFood?.let { selected ->
-        item { RiskDetailCard(selected) }
-        item { StaffPromptCard(state.dashboard.staffPrompt) }
-      }
-      item { SafetyPolicyCard() }
+    when (state.local.activeTab) {
+      MealTab.Home ->
+        HomeScreen(
+          state = state,
+          onRateClick = { onTabSelected(MealTab.Report) },
+          modifier = Modifier.padding(innerPadding),
+        )
+      MealTab.Week ->
+        WeekScreen(
+          state = state,
+          onDaySelected = onDaySelected,
+          modifier = Modifier.padding(innerPadding),
+        )
+      MealTab.Report ->
+        ReportScreen(
+          state = state,
+          onSpicySelected = onReportSpicySelected,
+          onAllergenToggled = onReportAllergenToggled,
+          onPhotoToggle = onPhotoToggle,
+          onSubmit = onSubmitReport,
+          modifier = Modifier.padding(innerPadding),
+        )
+      MealTab.Profile ->
+        ProfileScreen(
+          state = state,
+          onEditProfile = onEditProfile,
+          onNotificationsToggle = onNotificationsToggle,
+          modifier = Modifier.padding(innerPadding),
+        )
     }
   }
 }
 
 @Composable
-private fun ProductHeader(profile: DietProfile) {
-  Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-    Text("먹기 전 신호", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.ExtraBold, color = SignalColors.Ink)
-    Text(
-      "먹기 전에 알레르기, 매운맛, 식이 제한 위험을 확인합니다.",
-      style = MaterialTheme.typography.bodyMedium,
-      color = SignalColors.Muted,
-    )
-    Row(
-      modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-      horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-      profile.allergens.forEach { ToneChip("알레르기 $it", SignalTone.Danger) }
-      profile.dietTags.forEach { ToneChip(it, SignalTone.Info) }
-    }
-  }
-}
-
-@Composable
-private fun SearchAndActionPanel(
-  actions: List<QuickAction>,
-  query: String,
-  onQueryChange: (String) -> Unit,
+private fun OnboardingScreen(
+  state: MealSignalScreenState,
+  onAllergenToggled: (String) -> Unit,
+  onSpicyToleranceSelected: (Int) -> Unit,
+  onStart: () -> Unit,
+  onSkip: () -> Unit,
+  modifier: Modifier = Modifier,
 ) {
-  SignalCard {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-      Text("바로 확인", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SignalColors.Ink)
-      OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        label = { Text("제품명, 메뉴명, 브랜드 검색") },
-        singleLine = true,
-        leadingIcon = { Text("검색") },
-      )
-      actions.forEach { action -> QuickActionRow(action) }
-    }
-  }
-}
-
-@Composable
-private fun QuickActionRow(action: QuickAction) {
-  val palette = action.state.palette()
-  Row(
-    modifier =
-      Modifier
-        .fillMaxWidth()
-        .clip(RoundedCornerShape(8.dp))
-        .background(palette.container)
-        .padding(14.dp),
-    verticalAlignment = Alignment.CenterVertically,
-    horizontalArrangement = Arrangement.spacedBy(12.dp),
+  LazyColumn(
+    modifier = modifier.fillMaxSize().mealBackdrop(),
+    contentPadding = PaddingValues(24.dp),
+    verticalArrangement = Arrangement.spacedBy(22.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
   ) {
-    StateDot(palette.content)
-    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-      Text(action.title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = palette.content)
-      Text(action.description, style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted)
-    }
-    Text("열기", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = palette.content)
-  }
-}
-
-@Composable
-private fun ProfileSummaryCard(profile: DietProfile) {
-  SignalCard(container = SignalColors.PrimarySoft, border = SignalColors.Primary) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-      Text("내 기준", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SignalColors.PrimaryDark)
-      Text(
-        "우유·대두·새우 알레르기와 매운맛 약함 기준으로 위험 신호를 계산합니다.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = SignalColors.Ink,
-      )
-      SpicyToleranceRow(profile.spicyTolerance)
-    }
-  }
-}
-
-@Composable
-private fun SectionTitle(title: String, description: String) {
-  Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-    Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SignalColors.Ink)
-    Text(description, style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted)
-  }
-}
-
-@Composable
-private fun FoodResultCard(food: FoodSignal, selected: Boolean, onClick: () -> Unit) {
-  val tone = food.riskLevel.toTone()
-  val palette = tone.palette()
-  Card(
-    modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-    shape = RoundedCornerShape(8.dp),
-    colors = CardDefaults.cardColors(containerColor = if (selected) palette.container else SignalColors.Surface),
-    border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) palette.content else SignalColors.Line),
-  ) {
-    Row(
-      modifier = Modifier.fillMaxWidth().padding(14.dp),
-      horizontalArrangement = Arrangement.spacedBy(12.dp),
-      verticalAlignment = Alignment.Top,
-    ) {
-      FoodBadge(food.riskLevel)
-      Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-          Text(food.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SignalColors.Ink, modifier = Modifier.weight(1f))
-          Spacer(Modifier.width(8.dp))
-          ToneChip(food.riskLevel.label(), tone)
-        }
-        Text("${food.brand} · ${food.category}", style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted)
-        Text(food.summary, style = MaterialTheme.typography.bodyMedium, color = SignalColors.Ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-          food.matchedAllergens.forEach { ToneChip(it, SignalTone.Danger) }
-          food.possibleAllergens.forEach { ToneChip("$it 가능", SignalTone.Warning) }
-          ToneChip(food.confidence, SignalTone.Info)
-        }
-      }
-    }
-  }
-}
-
-@Composable
-private fun RiskDetailCard(food: FoodSignal) {
-  val tone = food.riskLevel.toTone()
-  val palette = tone.palette()
-  SignalCard(border = palette.content) {
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        FoodBadge(food.riskLevel)
-        Column(modifier = Modifier.weight(1f)) {
-          Text(food.headline, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = palette.content)
-          Text(food.name, style = MaterialTheme.typography.bodyMedium, color = SignalColors.Muted)
-        }
-      }
-      Text(food.summary, style = MaterialTheme.typography.bodyLarge, color = SignalColors.Ink)
-      EvidenceGrid(food)
-      SpicySignalRow(food.spicyLevel)
-      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("권장 행동", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = SignalColors.Ink)
-        Text(food.recommendedAction, style = MaterialTheme.typography.bodyMedium, color = SignalColors.Ink)
-      }
-      Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) { Text("대체 메뉴") }
-        Button(onClick = {}, modifier = Modifier.weight(1f)) { Text("문의하기") }
-      }
-    }
-  }
-}
-
-@Composable
-private fun EvidenceGrid(food: FoodSignal) {
-  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    EvidenceRow("출처", food.source, SignalTone.Safe)
-    EvidenceRow("업데이트", food.updatedAt, SignalTone.Info)
-    EvidenceRow("신뢰도", food.confidence, food.riskLevel.toTone())
-    EvidenceRow("주의", "정보 없음은 안전 보장이 아닙니다", SignalTone.Warning)
-    if (food.cautionTags.isNotEmpty()) {
-      Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        food.cautionTags.forEach { ToneChip(it, SignalTone.Warning) }
-      }
-    }
-  }
-}
-
-@Composable
-private fun EvidenceRow(label: String, value: String, tone: SignalTone) {
-  Row(
-    modifier = Modifier.fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(10.dp),
-    verticalAlignment = Alignment.CenterVertically,
-  ) {
-    ToneChip(label, tone)
-    Text(value, style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted, modifier = Modifier.weight(1f))
-  }
-}
-
-@Composable
-private fun SpicySignalRow(level: Int) {
-  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-      Text("매운맛 신호", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = SignalColors.Ink)
-      Text("${level}/5", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = SignalColors.WarningDark)
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
-      repeat(6) { index ->
-        Box(
-          modifier =
-            Modifier
-              .weight(1f)
-              .height(10.dp)
-              .clip(RoundedCornerShape(8.dp))
-              .background(if (index <= level) SignalColors.Warning else SignalColors.Line),
+    item { NotchSpacer() }
+    item { Mascot(size = 82, color = MealColors.Coral) }
+    item {
+      Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("반가워요!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Text(
+          "알레르기가 있는 음식을 골라주세요. 나중에 바꿀 수 있어요.",
+          style = MaterialTheme.typography.bodyLarge,
+          color = MealColors.Muted,
+          textAlign = TextAlign.Center,
         )
       }
     }
-    Text("매운맛 약한 사용자 기준으로 해석합니다.", style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted)
-  }
-}
-
-@Composable
-private fun SpicyToleranceRow(level: Int) {
-  Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-    Text("매운맛 내성", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = SignalColors.PrimaryDark)
-    repeat(5) { index ->
-      Box(
-        modifier =
-          Modifier
-            .size(width = 26.dp, height = 8.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (index < level) SignalColors.Primary else SignalColors.Line),
-      )
+    item {
+      SectionBlock(title = "자주 묻는 알레르기") {
+        state.dashboard.allergenOptions.chunked(4).forEach { row ->
+          Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+          ) {
+            row.forEach { allergen ->
+              SelectChip(
+                label = allergen,
+                selected = allergen in state.selectedAllergens,
+                onClick = { onAllergenToggled(allergen) },
+              )
+            }
+          }
+        }
+      }
     }
-    Text("$level/5", style = MaterialTheme.typography.bodySmall, color = SignalColors.Muted)
-  }
-}
-
-@Composable
-private fun StaffPromptCard(prompt: String) {
-  SignalCard(container = SignalColors.PrimarySoft, border = SignalColors.Primary) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-      Text("직원에게 보여줄 문장", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SignalColors.PrimaryDark)
-      Text("“$prompt”", style = MaterialTheme.typography.bodyLarge, color = SignalColors.Ink)
+    item {
+      SectionBlock(title = "매운맛 내성") {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          listOf(0, 1, 2).forEach { level ->
+            SelectChip(
+              label = spicyToleranceLabel(level),
+              selected = state.spicyTolerance == level,
+              onClick = { onSpicyToleranceSelected(level) },
+              modifier = Modifier.weight(1f),
+            )
+          }
+        }
+      }
     }
+    item { ShadowButton("시작하기", onClick = onStart, container = MealColors.Green, shadow = MealColors.GreenDark) }
+    item { SecondaryActionButton("나중에 설정할게요", onClick = onSkip) }
   }
 }
 
 @Composable
-private fun SafetyPolicyCard() {
-  SignalCard(container = SignalColors.WarningSoft, border = SignalColors.Warning) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-      Text("표현 정책", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SignalColors.WarningDark)
-      Text(
-        "이 앱은 의료적 확정 판단을 제공하지 않습니다. 공식 정보와 가능성 정보를 구분하고, 알레르기 위험은 주문 전 확인을 유도합니다.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = SignalColors.Ink,
-      )
-    }
-  }
-}
-
-@Composable
-private fun EmptyResultCard(query: String) {
-  SignalCard(container = SignalColors.InfoSoft, border = SignalColors.Info) {
-    Text("“$query” 검색 결과가 없습니다. 바코드/식품QR 스캔 또는 성분표 촬영을 시도하세요.", color = SignalColors.Ink)
-  }
-}
-
-@Composable
-private fun SignalBottomBar() {
-  NavigationBar(containerColor = SignalColors.Surface) {
-    listOf("홈", "스캔", "기록", "프로필").forEachIndexed { index, label ->
-      NavigationBarItem(
-        selected = index == 0,
-        onClick = {},
-        icon = { StateDot(if (index == 0) SignalColors.Primary else SignalColors.LineStrong) },
-        label = { Text(label) },
-      )
-    }
-  }
-}
-
-@Composable
-private fun FoodBadge(riskLevel: RiskLevel) {
-  val palette = riskLevel.toTone().palette()
-  Box(
-    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(palette.container),
-    contentAlignment = Alignment.Center,
-  ) {
-    Text(riskLevel.shortLabel(), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold, color = palette.content)
-  }
-}
-
-@Composable
-private fun ToneChip(label: String, tone: SignalTone) {
-  val palette = tone.palette()
-  Surface(
-    shape = RoundedCornerShape(50),
-    color = palette.container,
-    border = BorderStroke(1.dp, palette.border),
-  ) {
-    Row(
-      modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-      StateDot(palette.content)
-      Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = palette.content)
-    }
-  }
-}
-
-@Composable
-private fun StateDot(color: Color) {
-  Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-}
-
-@Composable
-private fun SignalCard(
+private fun HomeScreen(
+  state: MealSignalScreenState,
+  onRateClick: () -> Unit,
   modifier: Modifier = Modifier,
-  container: Color = SignalColors.Surface,
-  border: Color = SignalColors.Line,
-  content: @Composable () -> Unit,
 ) {
-  Card(
-    modifier = modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(8.dp),
-    colors = CardDefaults.cardColors(containerColor = container),
+  LazyColumn(
+    modifier = modifier.fillMaxSize().mealBackdrop(),
+    contentPadding = PaddingValues(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 24.dp),
+    verticalArrangement = Arrangement.spacedBy(16.dp),
+  ) {
+    item {
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        BadgePill("${state.streakDays}일 연속 확인", MealColors.YellowSoft, MealColors.YellowDark, "7")
+        if (state.todayEstimated) BadgePill("추정 정보 있음", MealColors.Surface, MealColors.YellowDark, "!")
+      }
+    }
+    item { HomeHero(state) }
+    item {
+      if (state.todayMatchedAllergens.isEmpty()) {
+        CalmNoticeCard("등록한 알레르기와 바로 겹치는 표시는 없어요.", "정보 없음은 안전 보장이 아니어서 메뉴별 표시를 확인해 주세요.")
+      } else {
+        AllergyWarningCard(
+          title = "${state.todayMatchedAllergens.joinToString("·")} 알레르기 주의",
+          message = "${state.riskMenuName ?: "오늘 메뉴"}에 등록한 알레르기 표시가 있어요. 먹기 전 한 번 더 확인해 주세요.",
+        )
+      }
+    }
+    item { SpicySummaryCard(level = state.todaySpicyLevel, tolerance = state.spicyTolerance) }
+    item { SectionTitle("오늘의 메뉴") }
+    item { MenuListCard(meal = state.todayMeal, selectedAllergens = state.selectedAllergens) }
+    item { ShadowButton("매운맛 평가하고 +스트릭", onClick = onRateClick, container = MealColors.Coral, shadow = MealColors.CoralDark) }
+  }
+}
+
+@Composable
+private fun WeekScreen(
+  state: MealSignalScreenState,
+  onDaySelected: (Int) -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  LazyColumn(
+    modifier = modifier.fillMaxSize().mealBackdrop(),
+    contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 24.dp),
+    verticalArrangement = Arrangement.spacedBy(18.dp),
+  ) {
+    item {
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("이번 주 급식", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Text("${state.dashboard.weekLabel} · ${state.dashboard.sourceLabel}", style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
+      }
+    }
+    item {
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(MealDesignTokens.Radius.Card),
+        color = MealColors.YellowSoft,
+        shadowElevation = MealDesignTokens.Depth.Card,
+        border = BorderStroke(1.dp, MealColors.Yellow),
+      ) {
+        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+          Text("${state.streakDays}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.YellowDark)
+          Column {
+            Text("일 연속 확인 중!", fontWeight = FontWeight.ExtraBold, color = MealColors.YellowDark)
+            Text("이번 주도 매일 체크해봐요", style = MaterialTheme.typography.bodySmall, color = MealColors.YellowDark)
+          }
+        }
+      }
+    }
+    itemsIndexed(state.dashboard.weekMeals) { index, meal ->
+      TimelineMealCard(
+        meal = meal,
+        selected = meal == state.selectedMeal,
+        selectedAllergens = state.selectedAllergens,
+        onClick = { onDaySelected(index) },
+      )
+    }
+  }
+}
+
+@Composable
+private fun ReportScreen(
+  state: MealSignalScreenState,
+  onSpicySelected: (Int) -> Unit,
+  onAllergenToggled: (String) -> Unit,
+  onPhotoToggle: () -> Unit,
+  onSubmit: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val target = state.dashboard.reportTargets.first()
+  LazyColumn(
+    modifier = modifier.fillMaxSize().mealBackdrop(),
+    contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 24.dp),
+    verticalArrangement = Arrangement.spacedBy(18.dp),
+  ) {
+    item {
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("오늘 급식 평가하기", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Text("매운맛 체감을 알려주면 다른 친구들에게도 도움이 돼요.", style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
+      }
+    }
+    item { ReportTargetCard(target = target, rating = state.local.reportSpicyRating, onSpicySelected = onSpicySelected) }
+    item {
+      SectionCard {
+        SectionTitle("알레르기 성분 제보", compact = true)
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          listOf("계란", "새우", "우유", "없음").forEach { allergen ->
+            SelectChip(
+              label = allergen,
+              selected = allergen in state.local.reportAllergens,
+              onClick = { onAllergenToggled(allergen) },
+            )
+          }
+        }
+      }
+    }
+    item {
+      DashedActionCard(
+        label = if (state.local.photoAttached) "사진 첨부됨" else "사진으로 제보하기 (선택)",
+        onClick = onPhotoToggle,
+      )
+    }
+    item {
+      Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), color = MealColors.GreenSoft) {
+        Text(
+          if (state.local.reportSubmitted) "제보가 저장됐어요. 연속 확인 스트릭이 1 늘었어요."
+          else "제보하면 연속 확인 스트릭이 유지돼요",
+          modifier = Modifier.padding(16.dp),
+          style = MaterialTheme.typography.bodyMedium,
+          fontWeight = FontWeight.Bold,
+          color = MealColors.GreenDark,
+        )
+      }
+    }
+    item { ShadowButton("제보 보내기", onClick = onSubmit, container = MealColors.Green, shadow = MealColors.GreenDark) }
+  }
+}
+
+@Composable
+private fun ProfileScreen(
+  state: MealSignalScreenState,
+  onEditProfile: () -> Unit,
+  onNotificationsToggle: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  LazyColumn(
+    modifier = modifier.fillMaxSize().mealBackdrop(),
+    contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 24.dp),
+    verticalArrangement = Arrangement.spacedBy(18.dp),
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
+    item { Mascot(size = 86, color = MealColors.Navy) }
+    item {
+      Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(state.dashboard.profile.name, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Text(state.dashboard.profile.classLabel, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, color = MealColors.Muted)
+      }
+    }
+    item {
+      Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        StatCard("${state.streakDays}", "연속 확인", Modifier.weight(1f))
+        StatCard("${state.reportCount}", "제보 횟수", Modifier.weight(1f))
+        StatCard("${state.selectedAllergens.size}", "알레르기", Modifier.weight(1f))
+      }
+    }
+    item {
+      Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        SectionTitle("내 알레르기", compact = true)
+        ProfileTable(state)
+      }
+    }
+    item { ShadowButton("알레르기 정보 수정", onClick = onEditProfile, container = MealColors.Coral, shadow = MealColors.CoralDark) }
+    item {
+      SecondaryActionButton(
+        label = if (state.local.notificationsEnabled) "알림 켜짐" else "알림 꺼짐",
+        onClick = onNotificationsToggle,
+      )
+    }
+  }
+}
+
+@Composable
+private fun HomeHero(state: MealSignalScreenState) {
+  val headline =
+    if (state.todayMatchedAllergens.isEmpty()) "오늘 급식 확인해볼까요?"
+    else "오늘 ${state.riskMenuName ?: "메뉴"} 나왔어요!"
+
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Hero),
+    color = MealColors.Navy,
+    shadowElevation = MealDesignTokens.Depth.Hero,
+    border = BorderStroke(1.dp, MealColors.NavySoft.copy(alpha = 0.22f)),
+  ) {
+    Box(
+      modifier =
+        Modifier
+          .fillMaxWidth()
+          .height(158.dp)
+          .background(Brush.linearGradient(listOf(MealColors.Navy, MealColors.NavyDeep))),
+    ) {
+      Column(
+        modifier = Modifier.align(Alignment.CenterStart).padding(start = 22.dp, end = 116.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+      ) {
+        Surface(shape = RoundedCornerShape(MealDesignTokens.Radius.Pill), color = Color.White.copy(alpha = 0.12f)) {
+          Text(
+            "먹기 전 신호",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.ExtraBold,
+            color = MealColors.NavySoft,
+          )
+        }
+        Text(
+          "${state.todayMeal.fullDateLabel} · ${state.todayMeal.mealType}",
+          style = MaterialTheme.typography.bodyMedium,
+          fontWeight = FontWeight.Bold,
+          color = MealColors.NavySoft,
+        )
+        Text(headline, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Color.White)
+      }
+      Mascot(size = 118, color = MealColors.Coral, modifier = Modifier.align(Alignment.CenterEnd).padding(end = 14.dp))
+    }
+  }
+}
+
+@Composable
+private fun AllergyWarningCard(title: String, message: String) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Card),
+    color = MealColors.RedSoft,
+    shadowElevation = MealDesignTokens.Depth.Card,
+    border = BorderStroke(1.dp, MealColors.Red),
+  ) {
+    Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+      AlertIcon()
+      Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MealColors.RedDark)
+        Text(message, style = MaterialTheme.typography.bodyLarge, color = MealColors.RedDark)
+      }
+    }
+  }
+}
+
+@Composable
+private fun CalmNoticeCard(title: String, message: String) {
+  SectionCard {
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.GreenDark)
+    Text(message, style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
+  }
+}
+
+@Composable
+private fun SpicySummaryCard(level: Int, tolerance: Int) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Card),
+    color = MealColors.SurfaceRaised,
+    shadowElevation = MealDesignTokens.Depth.Card,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Row(modifier = Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+      Surface(
+        modifier = Modifier.size(72.dp),
+        shape = CircleShape,
+        color = MealColors.Yellow,
+        shadowElevation = MealDesignTokens.Depth.Button,
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Text("$level", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        }
+      }
+      Column {
+        Text("단계 · ${spicyLevelLabel(level)}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Text("${spicyToleranceLabel(tolerance)} 기준으로 확인해 주세요", style = MaterialTheme.typography.bodyMedium, color = MealColors.Ink)
+      }
+    }
+  }
+}
+
+@Composable
+private fun MenuListCard(meal: MealDay, selectedAllergens: Set<String>) {
+  SectionCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)) {
+    meal.menuItems.forEachIndexed { index, item ->
+      MenuRow(item = item, selectedAllergens = selectedAllergens)
+      if (index != meal.menuItems.lastIndex) DividerLine()
+    }
+  }
+}
+
+@Composable
+private fun MenuRow(item: MealItem, selectedAllergens: Set<String>) {
+  Row(
+    modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(item.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+    MenuStatusChip(item = item, selectedAllergens = selectedAllergens)
+  }
+}
+
+@Composable
+private fun TimelineMealCard(
+  meal: MealDay,
+  selected: Boolean,
+  selectedAllergens: Set<String>,
+  onClick: () -> Unit,
+) {
+  Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    TimelineMarker(meal = meal, selected = selected)
+    Surface(
+      modifier = Modifier.weight(1f),
+      shape = RoundedCornerShape(MealDesignTokens.Radius.Control),
+      color = if (selected || meal.isToday) MealColors.SurfaceRaised else Color.Transparent,
+      shadowElevation = if (selected || meal.isToday) MealDesignTokens.Depth.Surface else 0.dp,
+      border = BorderStroke(1.dp, if (selected || meal.isToday) MealColors.Line else Color.Transparent),
+    ) {
+      Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(meal.dateLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = if (meal.isToday) MealColors.Coral else MealColors.Muted)
+        Text(
+          meal.menuItems.joinToString(" · ") { it.name },
+          maxLines = 2,
+          overflow = TextOverflow.Ellipsis,
+          style = MaterialTheme.typography.titleMedium,
+          fontWeight = FontWeight.ExtraBold,
+          color = MealColors.Ink,
+        )
+        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          meal.matchedAllergens(selectedAllergens).forEach { Tag(label = it, tone = TagTone.Danger) }
+          if (meal.matchedAllergens(selectedAllergens).isEmpty()) Tag(label = "표시없음", tone = TagTone.Green)
+          if ((meal.menuItems.maxOfOrNull { it.spicyLevel } ?: 0) > 0) Tag(label = spicyLevelLabel(meal.menuItems.maxOf { it.spicyLevel }), tone = TagTone.Yellow)
+          if (meal.menuItems.any { it.isEstimated }) Tag(label = "추정", tone = TagTone.Yellow)
+        }
+      }
+    }
+  }
+}
+
+@Composable
+private fun TimelineMarker(meal: MealDay, selected: Boolean) {
+  val color =
+    when {
+      meal.isToday -> MealColors.Coral
+      selected -> MealColors.Green
+      else -> MealColors.Surface
+    }
+  val contentColor = if (meal.isToday || selected) Color.White else MealColors.Muted
+  Surface(
+    modifier = Modifier.size(58.dp),
+    shape = CircleShape,
+    color = color,
+    shadowElevation = if (meal.isToday || selected) MealDesignTokens.Depth.Button else 0.dp,
+    border = BorderStroke(2.dp, if (meal.isToday || selected) color else MealColors.Line),
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Text(meal.dayBadge, fontWeight = FontWeight.ExtraBold, color = contentColor)
+    }
+  }
+}
+
+@Composable
+private fun ReportTargetCard(
+  target: ReportTarget,
+  rating: Int,
+  onSpicySelected: (Int) -> Unit,
+) {
+  SectionCard {
+    Text("${target.menuName} - 체감 매운맛", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+    Text(target.description, style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      (0..4).forEach { level ->
+        NumberChoice(number = level, selected = rating == level, onClick = { onSpicySelected(level) }, modifier = Modifier.weight(1f))
+      }
+    }
+  }
+}
+
+@Composable
+private fun ProfileTable(state: MealSignalScreenState) {
+  SectionCard(contentPadding = PaddingValues(0.dp)) {
+    val rows =
+      state.selectedAllergens.map { it to "등록됨" } +
+        listOf("매운맛 내성" to spicyToleranceLabel(state.spicyTolerance))
+
+    rows.forEachIndexed { index, row ->
+      Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(row.first, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Ink)
+        Tag(label = row.second, tone = if (row.second == "등록됨") TagTone.Danger else TagTone.Neutral)
+      }
+      if (index != rows.lastIndex) DividerLine()
+    }
+  }
+}
+
+@Composable
+private fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
+  Surface(
+    modifier = modifier.height(86.dp),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Small),
+    color = MealColors.SurfaceRaised,
+    shadowElevation = MealDesignTokens.Depth.Surface,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+      Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = MealColors.CoralDark)
+      Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.ExtraBold, color = MealColors.Muted)
+    }
+  }
+}
+
+@Composable
+private fun SectionBlock(title: String, content: @Composable ColumnScope.() -> Unit) {
+  Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Muted)
+    content()
+  }
+}
+
+@Composable
+private fun SectionCard(
+  contentPadding: PaddingValues = PaddingValues(18.dp),
+  content: @Composable ColumnScope.() -> Unit,
+) {
+  Surface(
+    modifier = Modifier.fillMaxWidth(),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Card),
+    color = MealColors.SurfaceRaised,
+    tonalElevation = MealDesignTokens.Depth.Surface,
+    shadowElevation = MealDesignTokens.Depth.Card,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Column(modifier = Modifier.padding(contentPadding), verticalArrangement = Arrangement.spacedBy(14.dp), content = content)
+  }
+}
+
+@Composable
+private fun SectionTitle(title: String, compact: Boolean = false) {
+  Text(
+    title,
+    style = if (compact) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
+    fontWeight = FontWeight.ExtraBold,
+    color = MealColors.Ink,
+  )
+}
+
+@Composable
+private fun SelectChip(
+  label: String,
+  selected: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  val background = if (selected) MealColors.RedSoft else MealColors.Surface
+  val border = if (selected) MealColors.Red else MealColors.Line
+  val content = if (selected) MealColors.Red else MealColors.Ink
+  Surface(
+    modifier = modifier.height(58.dp).clickable(onClick = onClick),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Control),
+    color = background,
+    shadowElevation = if (selected) MealDesignTokens.Depth.Button else MealDesignTokens.Depth.Surface,
     border = BorderStroke(1.dp, border),
   ) {
-    Box(modifier = Modifier.padding(16.dp)) { content() }
+    Box(modifier = Modifier.padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+      Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = content, textAlign = TextAlign.Center)
+    }
   }
+}
+
+@Composable
+private fun NumberChoice(
+  number: Int,
+  selected: Boolean,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Surface(
+    modifier = modifier.height(54.dp).clickable(onClick = onClick),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Small),
+    color = if (selected) MealColors.Yellow else MealColors.SurfaceRaised,
+    shadowElevation = if (selected) MealDesignTokens.Depth.Button else MealDesignTokens.Depth.Surface,
+    border = BorderStroke(1.dp, if (selected) MealColors.YellowDark else MealColors.Line),
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Text("$number", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = if (selected) MealColors.Ink else MealColors.Muted)
+    }
+  }
+}
+
+@Composable
+private fun ShadowButton(
+  label: String,
+  onClick: () -> Unit,
+  container: Color,
+  shadow: Color,
+) {
+  Box(modifier = Modifier.fillMaxWidth().height(76.dp).clickable(onClick = onClick)) {
+    val buttonShape = RoundedCornerShape(MealDesignTokens.Radius.Control)
+    Box(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(62.dp).clip(buttonShape).background(shadow))
+    Box(
+      modifier =
+        Modifier
+          .align(Alignment.TopCenter)
+          .fillMaxWidth()
+          .height(62.dp)
+          .shadow(MealDesignTokens.Depth.Button, buttonShape, clip = false)
+          .clip(buttonShape)
+          .background(container),
+      contentAlignment = Alignment.Center,
+    ) {
+      Text(label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
+    }
+  }
+}
+
+@Composable
+private fun SecondaryActionButton(label: String, onClick: () -> Unit) {
+  Surface(
+    modifier = Modifier.fillMaxWidth().height(64.dp).clickable(onClick = onClick),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Control),
+    color = MealColors.SurfaceRaised,
+    shadowElevation = MealDesignTokens.Depth.Surface,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Muted)
+    }
+  }
+}
+
+@Composable
+private fun DashedActionCard(label: String, onClick: () -> Unit) {
+  Surface(
+    modifier = Modifier.fillMaxWidth().height(82.dp).clickable(onClick = onClick),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Control),
+    color = MealColors.Background,
+    shadowElevation = MealDesignTokens.Depth.Surface,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Box(contentAlignment = Alignment.Center) {
+      Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = MealColors.Muted)
+    }
+  }
+}
+
+@Composable
+private fun BadgePill(label: String, background: Color, content: Color, icon: String) {
+  Surface(
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Pill),
+    color = background,
+    shadowElevation = MealDesignTokens.Depth.Surface,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    Row(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+      Surface(modifier = Modifier.size(28.dp), shape = CircleShape, color = MealColors.Yellow) {
+        Box(contentAlignment = Alignment.Center) { Text(icon, fontWeight = FontWeight.ExtraBold, color = content) }
+      }
+      Text(label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.ExtraBold, color = content)
+    }
+  }
+}
+
+@Composable
+private fun MenuStatusChip(item: MealItem, selectedAllergens: Set<String>) {
+  val label = item.statusLabel(selectedAllergens)
+  val tone =
+    when {
+      item.allergens.any { it in selectedAllergens } -> TagTone.Danger
+      label == "추정" -> TagTone.Yellow
+      label.contains("매움") -> TagTone.Yellow
+      else -> TagTone.Green
+    }
+  Tag(label = label, tone = tone)
+}
+
+@Composable
+private fun Tag(label: String, tone: TagTone) {
+  val colors = tone.colors()
+  Surface(shape = RoundedCornerShape(24.dp), color = colors.background) {
+    Text(
+      label,
+      modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+      style = MaterialTheme.typography.labelLarge,
+      fontWeight = FontWeight.ExtraBold,
+      color = colors.content,
+    )
+  }
+}
+
+@Composable
+private fun AlertIcon() {
+  Box(modifier = Modifier.size(62.dp).clip(CircleShape).background(MealColors.Red), contentAlignment = Alignment.Center) {
+    Text("!", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
+  }
+}
+
+@Composable
+private fun Mascot(size: Int, color: Color, modifier: Modifier = Modifier) {
+  Canvas(modifier = modifier.size(size.dp).shadow(MealDesignTokens.Depth.Floating, CircleShape, clip = false)) {
+    val radius = this.size.minDimension / 2f
+    drawCircle(color = color, radius = radius)
+    drawCircle(color = Color.White, radius = radius * 0.13f, center = Offset(radius * 0.65f, radius * 0.72f))
+    drawCircle(color = Color.White, radius = radius * 0.13f, center = Offset(radius * 1.35f, radius * 0.72f))
+    drawCircle(color = MealColors.Ink, radius = radius * 0.055f, center = Offset(radius * 0.65f, radius * 0.72f))
+    drawCircle(color = MealColors.Ink, radius = radius * 0.055f, center = Offset(radius * 1.35f, radius * 0.72f))
+    drawCircle(color = Color.White.copy(alpha = 0.25f), radius = radius * 0.13f, center = Offset(radius * 0.35f, radius * 1.05f))
+    drawCircle(color = Color.White.copy(alpha = 0.25f), radius = radius * 0.13f, center = Offset(radius * 1.65f, radius * 1.05f))
+    drawArc(
+      color = Color.White,
+      startAngle = 25f,
+      sweepAngle = 130f,
+      useCenter = false,
+      topLeft = Offset(radius * 0.63f, radius * 0.92f),
+      size = Size(radius * 0.75f, radius * 0.55f),
+      style = Stroke(width = radius * 0.08f, cap = StrokeCap.Round),
+    )
+  }
+}
+
+@Composable
+private fun MealBottomBar(activeTab: MealTab, onTabSelected: (MealTab) -> Unit) {
+  Surface(
+    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+    shape = RoundedCornerShape(MealDesignTokens.Radius.Sheet),
+    color = MealColors.SurfaceRaised,
+    shadowElevation = MealDesignTokens.Depth.Floating,
+    border = BorderStroke(1.dp, MealColors.Line),
+  ) {
+    NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp, modifier = Modifier.height(76.dp)) {
+      MealTab.entries.forEach { tab ->
+        val selected = activeTab == tab
+        NavigationBarItem(
+          selected = selected,
+          onClick = { onTabSelected(tab) },
+          colors =
+            NavigationBarItemDefaults.colors(
+              indicatorColor = Color.Transparent,
+              selectedIconColor = MealColors.Coral,
+              selectedTextColor = MealColors.Navy,
+              unselectedIconColor = MealColors.Muted,
+              unselectedTextColor = MealColors.Muted,
+            ),
+          icon = {
+            Box(
+              modifier =
+                Modifier
+                  .size(if (selected) 30.dp else 24.dp)
+                  .clip(CircleShape)
+                  .background(if (selected) MealColors.Coral else MealColors.Line),
+            )
+          },
+          label = { Text(tab.label, fontWeight = FontWeight.ExtraBold) },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun DividerLine() {
+  Spacer(modifier = Modifier.fillMaxWidth().height(1.dp).background(MealColors.Line))
+}
+
+private fun Modifier.mealBackdrop(): Modifier =
+  background(
+    Brush.verticalGradient(
+      colors = listOf(MealColors.Background, MealColors.BackgroundDeep, MealColors.Background),
+    ),
+  )
+
+@Composable
+private fun NotchSpacer() {
+  Box(modifier = Modifier.width(112.dp).height(30.dp).clip(RoundedCornerShape(20.dp)).background(MealColors.Ink))
 }
 
 @Composable
 private fun LoadingScreen(modifier: Modifier = Modifier) {
-  Box(modifier = modifier.fillMaxSize().background(SignalColors.Background), contentAlignment = Alignment.Center) {
-    Text("먹기 전 신호를 준비하는 중", color = SignalColors.Muted)
+  Box(modifier = modifier.fillMaxSize().mealBackdrop(), contentAlignment = Alignment.Center) {
+    Text("먹기 전 신호를 준비하는 중", color = MealColors.Muted)
   }
 }
 
 @Composable
 private fun ErrorScreen(throwable: Throwable, modifier: Modifier = Modifier) {
-  Box(modifier = modifier.fillMaxSize().background(SignalColors.Background).padding(24.dp), contentAlignment = Alignment.Center) {
-    Text("데이터를 불러오지 못했습니다: ${throwable.message}", color = SignalColors.Danger)
+  Box(modifier = modifier.fillMaxSize().mealBackdrop().padding(24.dp), contentAlignment = Alignment.Center) {
+    Text("데이터를 불러오지 못했습니다: ${throwable.message}", color = MealColors.Red)
   }
 }
 
-private fun RiskLevel.toTone(): SignalTone =
-  when (this) {
-    RiskLevel.High -> SignalTone.Danger
-    RiskLevel.Check -> SignalTone.Warning
-    RiskLevel.Low -> SignalTone.Safe
+private fun spicyToleranceLabel(level: Int): String =
+  when (level) {
+    0 -> "잘 못 먹음"
+    1 -> "보통"
+    else -> "잘 먹음"
   }
 
-private fun RiskLevel.label(): String =
-  when (this) {
-    RiskLevel.High -> "위험 높음"
-    RiskLevel.Check -> "확인 필요"
-    RiskLevel.Low -> "주의 낮음"
+private fun spicyLevelLabel(level: Int): String =
+  when {
+    level <= 0 -> "안매움"
+    level == 1 -> "약간매움"
+    level == 2 -> "보통 매움"
+    level == 3 -> "매움"
+    else -> "매우 매움"
   }
 
-private fun RiskLevel.shortLabel(): String =
+private enum class TagTone {
+  Danger,
+  Green,
+  Yellow,
+  Neutral,
+}
+
+private data class TagColors(val background: Color, val content: Color)
+
+private fun TagTone.colors(): TagColors =
   when (this) {
-    RiskLevel.High -> "위험"
-    RiskLevel.Check -> "확인"
-    RiskLevel.Low -> "낮음"
+    TagTone.Danger -> TagColors(MealColors.RedSoft, MealColors.Red)
+    TagTone.Green -> TagColors(MealColors.GreenSoft, MealColors.GreenDark)
+    TagTone.Yellow -> TagColors(MealColors.YellowSoft, MealColors.YellowDark)
+    TagTone.Neutral -> TagColors(MealColors.SurfaceAlt, MealColors.Muted)
   }
 
-private fun SignalTone.palette(): TonePalette =
-  when (this) {
-    SignalTone.Danger -> TonePalette(SignalColors.DangerSoft, SignalColors.Danger, SignalColors.Danger)
-    SignalTone.Warning -> TonePalette(SignalColors.WarningSoft, SignalColors.WarningDark, SignalColors.Warning)
-    SignalTone.Safe -> TonePalette(SignalColors.PrimarySoft, SignalColors.PrimaryDark, SignalColors.Primary)
-    SignalTone.Info -> TonePalette(SignalColors.InfoSoft, SignalColors.Info, SignalColors.Info)
-  }
-
-private data class TonePalette(
-  val container: Color,
-  val content: Color,
-  val border: Color,
-)
-
-private object SignalColors {
-  val Background = Color(0xFFF6F4EC)
-  val Surface = Color(0xFFFFFFFF)
-  val Ink = Color(0xFF17201C)
-  val Muted = Color(0xFF5C655F)
-  val Line = Color(0xFFD9D5CA)
-  val LineStrong = Color(0xFFB9B2A5)
-  val Primary = Color(0xFF2F8F6B)
-  val PrimaryDark = Color(0xFF1F674D)
-  val PrimarySoft = Color(0xFFE7F4EE)
-  val Danger = Color(0xFFD94B4B)
-  val DangerSoft = Color(0xFFFDECEC)
-  val Warning = Color(0xFFF2B84B)
-  val WarningDark = Color(0xFF8A5C00)
-  val WarningSoft = Color(0xFFFFF6D9)
-  val Info = Color(0xFF4978D4)
-  val InfoSoft = Color(0xFFEDF2FF)
+private object MealColors {
+  val Background = MealDesignTokens.Colors.Canvas
+  val BackgroundDeep = MealDesignTokens.Colors.CanvasDeep
+  val Surface = MealDesignTokens.Colors.Surface
+  val SurfaceRaised = MealDesignTokens.Colors.SurfaceRaised
+  val SurfaceAlt = MealDesignTokens.Colors.SurfacePressed
+  val Ink = MealDesignTokens.Colors.Ink
+  val Muted = MealDesignTokens.Colors.Muted
+  val Line = MealDesignTokens.Colors.Line
+  val Coral = MealDesignTokens.Colors.Coral
+  val CoralDark = MealDesignTokens.Colors.CoralDeep
+  val Navy = MealDesignTokens.Colors.Navy
+  val NavyDeep = MealDesignTokens.Colors.NavyDeep
+  val NavySoft = MealDesignTokens.Colors.NavySoft
+  val Red = MealDesignTokens.Colors.Danger
+  val RedDark = MealDesignTokens.Colors.DangerDeep
+  val RedSoft = MealDesignTokens.Colors.DangerSoft
+  val Yellow = MealDesignTokens.Colors.Amber
+  val YellowDark = MealDesignTokens.Colors.AmberDeep
+  val YellowSoft = MealDesignTokens.Colors.AmberSoft
+  val Green = MealDesignTokens.Colors.Mint
+  val GreenDark = MealDesignTokens.Colors.MintDeep
+  val GreenSoft = MealDesignTokens.Colors.MintSoft
 }
 
 @Preview(showBackground = true)
@@ -501,20 +975,10 @@ fun MainScreenPreview() {
   BeforeMealSignalTheme {
     MainScreen(
       state =
-        FoodSignalScreenState(
-          dashboard =
-            FoodSignalDashboard(
-              profile = DietProfile(listOf("우유", "대두", "새우"), listOf("매운맛 약함"), 1),
-              quickActions = emptyList(),
-              foods = emptyList(),
-              staffPrompt = "알레르기 성분을 확인해 주세요.",
-            ),
-          query = "",
-          filteredFoods = emptyList(),
-          selectedFood = null,
+        MealSignalScreenState(
+          dashboard = sampleDashboard,
+          local = MealPrototypeState(showOnboarding = false),
         ),
-      onQueryChange = {},
-      onFoodSelected = {},
     )
   }
 }
