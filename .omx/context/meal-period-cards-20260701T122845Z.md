@@ -1,0 +1,26 @@
+# Context Snapshot: Meal Period Cards
+
+- Task statement: Refactor the meal UI/data flow so users can view breakfast, lunch, and dinner as cards.
+- Desired outcome: The home/weekly meal presentation keeps meal information primary and groups a day's meals by period (`아침`, `점심`, `저녁`) instead of showing only one representative `mealType`.
+- Known facts/evidence:
+  - `MealDay` currently has one `mealType: String` and one `menuItems: List<MealItem>` in `app/src/main/java/com/example/beforemealsignal/data/DataRepository.kt`.
+  - `MealSignalScreenState.todayMeal`, `todayMatchedAllergens`, `todayEstimated`, `todaySpicyLevel`, and `riskMenuName` derive from `todayMeal.menuItems` in `MainScreenViewModel.kt`.
+  - `HomeScreen` currently renders one `MenuListCard(meal = state.todayMeal, ...)` in `MainScreen.kt`.
+  - `WeekScreen` and `TimelineMealCard` summarize one `MealDay.menuItems` list per day.
+  - Current NEIS mapper code already reads `MMEAL_SC_NM` into a meal-name/meal-type field in `NeisApiClient.kt` and collapses day rows in `NeisMealRepository.kt`.
+- Constraints:
+  - Keep meal information as the primary surface.
+  - Do not add dependencies.
+  - Preserve existing business logic behavior unless changing it is required to represent breakfast/lunch/dinner.
+  - Respect current dirty worktree; do not revert unrelated NEIS/API changes.
+- Unknowns/open questions:
+  - Whether the real NEIS response includes all three periods for the configured school/date every day.
+  - Exact Korean labels from NEIS may be `조식`, `중식`, `석식`; UI should display friendly labels `아침`, `점심`, `저녁`.
+- Likely codebase touchpoints:
+  - `app/src/main/java/com/example/beforemealsignal/data/DataRepository.kt`
+  - `app/src/main/java/com/example/beforemealsignal/data/NeisApiClient.kt`
+  - `app/src/main/java/com/example/beforemealsignal/data/NeisMealRepository.kt`
+  - `app/src/main/java/com/example/beforemealsignal/ui/main/MainScreenViewModel.kt`
+  - `app/src/main/java/com/example/beforemealsignal/ui/main/MainScreen.kt`
+  - `app/src/test/java/com/example/beforemealsignal/data/NeisMealMapperTest.kt`
+  - `app/src/androidTest/java/com/example/beforemealsignal/ui/main/MainScreenTest.kt`
