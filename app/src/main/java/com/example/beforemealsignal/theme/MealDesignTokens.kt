@@ -5,42 +5,42 @@ import androidx.compose.ui.unit.dp
 
 object MealDesignTokens {
   object Colors {
-    val Canvas = Color(0xFFF4EAD9)
-    val CanvasDeep = Color(0xFFEADBC3)
-    val Surface = Color(0xFFFFFBF3)
+    val Canvas = Color(0xFFF7F8F5)
+    val CanvasDeep = Color(0xFFEEF3F0)
+    val Surface = Color(0xFFFCFEFA)
     val SurfaceRaised = Color(0xFFFFFFFF)
-    val SurfacePressed = Color(0xFFF1E5D4)
-    val Ink = Color(0xFF241D1A)
-    val Muted = Color(0xFF756A5D)
-    val Line = Color(0xFFE2D1BC)
+    val SurfacePressed = Color(0xFFEEF6F4)
+    val Ink = Color(0xFF223130)
+    val Muted = Color(0xFF61706D)
+    val Line = Color(0xFFD8E1DE)
 
-    val Coral = Color(0xFFFF5B4E)
-    val CoralDeep = Color(0xFFB93426)
-    val CoralSoft = Color(0xFFFFE1DD)
+    val Coral = Color(0xFFC97857)
+    val CoralDeep = Color(0xFF8A4C37)
+    val CoralSoft = Color(0xFFF5E5DC)
 
-    val Mint = Color(0xFF39B87D)
-    val MintDeep = Color(0xFF126F4F)
-    val MintSoft = Color(0xFFDFF7E9)
+    val Mint = Color(0xFF2F6F73)
+    val MintDeep = Color(0xFF1D5C63)
+    val MintSoft = Color(0xFFDDEDEA)
 
-    val Navy = Color(0xFF153A55)
-    val NavyDeep = Color(0xFF0B2538)
-    val NavySoft = Color(0xFFD7ECF5)
+    val Navy = Color(0xFF314D60)
+    val NavyDeep = Color(0xFF223B49)
+    val NavySoft = Color(0xFFE5EEF2)
 
-    val Amber = Color(0xFFFFC43B)
-    val AmberDeep = Color(0xFF8F6000)
-    val AmberSoft = Color(0xFFFFF0C0)
+    val Amber = Color(0xFFD9A441)
+    val AmberDeep = Color(0xFF6F541F)
+    val AmberSoft = Color(0xFFF7EDCE)
 
-    val Danger = Color(0xFFE6424F)
-    val DangerDeep = Color(0xFF76131D)
-    val DangerSoft = Color(0xFFFFE0E4)
+    val Danger = Color(0xFFA94E55)
+    val DangerDeep = Color(0xFF6E2730)
+    val DangerSoft = Color(0xFFF4DFE2)
   }
 
   object Radius {
-    val Sheet = 32.dp
-    val Hero = 30.dp
-    val Card = 24.dp
-    val Control = 18.dp
-    val Small = 14.dp
+    val Sheet = 28.dp
+    val Hero = 24.dp
+    val Card = 20.dp
+    val Control = 16.dp
+    val Small = 12.dp
     val Pill = 100.dp
   }
 
