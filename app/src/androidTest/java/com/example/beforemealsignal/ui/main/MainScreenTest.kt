@@ -40,8 +40,11 @@ class MainScreenTest {
       }
     }
 
-    composeTestRule.onNodeWithText("오늘 계란찜 나왔어요!").assertIsDisplayed()
-    composeTestRule.onNodeWithText("계란 알레르기 주의").assertIsDisplayed()
-    composeTestRule.onNodeWithText("오늘의 메뉴").assertIsDisplayed()
+    composeTestRule.onNodeWithText("오늘 급식 먼저 확인해요").assertIsDisplayed()
+    composeTestRule.onNodeWithText("오늘 급식").assertIsDisplayed()
+    composeTestRule.onNodeWithText("아침").assertIsDisplayed()
+    composeTestRule.onNodeWithText("저녁").assertIsDisplayed()
+    composeTestRule.onNodeWithText("잡곡밥").assertIsDisplayed()
+    composeTestRule.onNodeWithText("빠른 체크인").assertIsDisplayed()
   }
 }
