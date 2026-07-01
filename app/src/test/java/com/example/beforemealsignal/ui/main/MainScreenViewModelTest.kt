@@ -1,13 +1,10 @@
 package com.example.beforemealsignal.ui.main
 
 import com.example.beforemealsignal.data.DataRepository
-import com.example.beforemealsignal.data.DietProfile
-import com.example.beforemealsignal.data.FoodSignal
-import com.example.beforemealsignal.data.FoodSignalDashboard
-import com.example.beforemealsignal.data.QuickAction
-import com.example.beforemealsignal.data.RiskLevel
-import com.example.beforemealsignal.data.SignalTone
+import com.example.beforemealsignal.data.MealSignalDashboard
+import com.example.beforemealsignal.data.sampleDashboard
 import junit.framework.TestCase.assertEquals
+import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -17,52 +14,48 @@ import org.junit.Test
 
 class MainScreenViewModelTest {
   @Test
-  fun uiState_exposesFirstFoodAsSelected() = runTest {
-    val viewModel = MainScreenViewModel(FakeSignalRepository())
+  fun uiState_startsWithOnboardingDefaults() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
 
-    val state = viewModel.uiState.first { it is MainScreenUiState.Success } as MainScreenUiState.Success
+    val state = viewModel.successState()
 
-    assertEquals("테스트 김밥", state.state.selectedFood?.name)
-    assertEquals(1, state.state.filteredFoods.size)
+    assertTrue(state.local.showOnboarding)
+    assertEquals(setOf("계란", "우유"), state.selectedAllergens)
+    assertEquals(1, state.spicyTolerance)
   }
 
   @Test
-  fun onQueryChange_filtersFoodsByAllergen() = runTest {
-    val viewModel = MainScreenViewModel(FakeSignalRepository())
+  fun onStartOnboarding_showsHomeWithTodayRisk() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
 
-    viewModel.onQueryChange("우유")
-    val state = viewModel.uiState.first { it is MainScreenUiState.Success } as MainScreenUiState.Success
+    viewModel.onStartOnboarding()
+    val state = viewModel.successState()
 
-    assertTrue(state.state.filteredFoods.all { it.possibleAllergens.contains("우유") || it.matchedAllergens.contains("우유") })
+    assertFalse(state.local.showOnboarding)
+    assertEquals(MealTab.Home, state.local.activeTab)
+    assertEquals(listOf("계란"), state.todayMatchedAllergens)
+    assertEquals("계란찜", state.riskMenuName)
+  }
+
+  @Test
+  fun onSubmitReport_incrementsReportAndStreakCounts() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
+
+    val before = viewModel.successState()
+    viewModel.onSubmitReport()
+    val after = viewModel.successState { it.local.reportSubmitted }
+
+    assertTrue(after.local.reportSubmitted)
+    assertEquals(before.reportCount + 1, after.reportCount)
+    assertEquals(before.streakDays + 1, after.streakDays)
   }
 }
 
-private class FakeSignalRepository : DataRepository {
-  override val dashboard: Flow<FoodSignalDashboard> =
-    flowOf(
-      FoodSignalDashboard(
-        profile = DietProfile(allergens = listOf("우유"), dietTags = listOf("매운맛 약함"), spicyTolerance = 1),
-        quickActions = listOf(QuickAction("검색", "제품명으로 확인", SignalTone.Info)),
-        foods =
-          listOf(
-            FoodSignal(
-              name = "테스트 김밥",
-              brand = "테스트 브랜드",
-              category = "가공식품",
-              source = "공식 데이터",
-              updatedAt = "2026.06.30",
-              confidence = "공식",
-              headline = "확인 필요",
-              summary = "우유 포함 가능성이 있습니다.",
-              riskLevel = RiskLevel.Check,
-              matchedAllergens = emptyList(),
-              possibleAllergens = listOf("우유"),
-              spicyLevel = 0,
-              cautionTags = listOf("주문 전 확인"),
-              recommendedAction = "성분표를 확인하세요.",
-            )
-          ),
-        staffPrompt = "우유 포함 여부를 확인해 주세요.",
-      )
-    )
+private suspend fun MainScreenViewModel.successState(
+  predicate: (MealSignalScreenState) -> Boolean = { true },
+): MealSignalScreenState =
+  (uiState.first { it is MainScreenUiState.Success && predicate(it.state) } as MainScreenUiState.Success).state
+
+private class FakeMealRepository : DataRepository {
+  override val dashboard: Flow<MealSignalDashboard> = flowOf(sampleDashboard)
 }
