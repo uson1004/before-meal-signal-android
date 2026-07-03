@@ -502,7 +502,9 @@ private fun InfoRow(label: String, value: String, tone: TagTone) {
 @Composable
 private fun MealPeriodPager(meal: MealDay, selectedAllergens: Set<String>) {
   val sections = meal.mealSections.ifEmpty { listOf(MealSection("점심", "중식", meal.menuItems)) }
-  val initialPage = sections.indexOfFirst { it.menuItems.isNotEmpty() }.takeIf { it >= 0 } ?: 0
+  val lunchPage = sections.indexOfFirst { it.mealType == "중식" && it.menuItems.isNotEmpty() }
+  val firstServedPage = sections.indexOfFirst { it.menuItems.isNotEmpty() }
+  val initialPage = lunchPage.takeIf { it >= 0 } ?: firstServedPage.takeIf { it >= 0 } ?: 0
   val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { sections.size })
   val scope = rememberCoroutineScope()
 
