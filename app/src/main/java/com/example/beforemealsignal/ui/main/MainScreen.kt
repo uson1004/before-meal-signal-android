@@ -102,6 +102,7 @@ fun MainScreen(
 @Composable
 internal fun MainScreen(
   state: MealSignalScreenState,
+  modifier: Modifier = Modifier,
   onAllergenToggled: (String) -> Unit = {},
   onSpicyToleranceSelected: (Int) -> Unit = {},
   onStartOnboarding: () -> Unit = {},
@@ -114,7 +115,6 @@ internal fun MainScreen(
   onSubmitReport: () -> Unit = {},
   onEditProfile: () -> Unit = {},
   onNotificationsToggle: () -> Unit = {},
-  modifier: Modifier = Modifier,
 ) {
   if (state.local.showOnboarding) {
     OnboardingScreen(
