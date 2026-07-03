@@ -124,6 +124,12 @@ val sampleDashboard =
                   MealItem("계란찜", allergens = setOf("계란")),
                   MealItem("배추김치", spicyLevel = 1),
                 ),
+              dinner =
+                listOf(
+                  MealItem("김치볶음밥", spicyLevel = 2),
+                  MealItem("닭갈비", allergens = setOf("닭고기"), spicyLevel = 1, isEstimated = true),
+                  MealItem("바나나"),
+                ),
             ),
         ),
         MealDay(
