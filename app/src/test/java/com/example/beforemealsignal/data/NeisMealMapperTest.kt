@@ -98,6 +98,14 @@ class NeisMealMapperTest {
     assertTrue(dashboard.reportTargets.isNotEmpty())
   }
 
+  @Test
+  fun sampleDashboard_keepsTodayAllMealPeriodsVisible() {
+    val today = sampleDashboard.weekMeals.first { it.isToday }
+
+    assertEquals("아침·점심·저녁", today.mealType)
+    assertTrue(today.mealSections.all { it.menuItems.isNotEmpty() })
+  }
+
   @OptIn(ExperimentalCoroutinesApi::class)
   @Test
   fun repository_missingConfigReturnsFallbackWithoutCallingClient() = runTest {
