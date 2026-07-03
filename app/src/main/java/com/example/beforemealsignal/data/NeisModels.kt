@@ -9,7 +9,6 @@ data class NeisConfig(
   val apiKey: String,
   val officeCode: String,
   val schoolCode: String,
-  val mealCode: String,
 ) {
   val isConfigured: Boolean
     get() = apiKey.isNotBlank() && officeCode.isNotBlank() && schoolCode.isNotBlank()
@@ -20,7 +19,6 @@ data class NeisConfig(
         apiKey = BuildConfig.NEIS_API_KEY,
         officeCode = BuildConfig.NEIS_OFFICE_CODE,
         schoolCode = BuildConfig.NEIS_SCHOOL_CODE,
-        mealCode = BuildConfig.NEIS_MEAL_CODE,
       )
   }
 }

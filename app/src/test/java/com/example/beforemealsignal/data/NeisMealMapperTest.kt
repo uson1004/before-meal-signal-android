@@ -52,15 +52,13 @@ class NeisMealMapperTest {
   }
 
   @Test
-  fun weeklyMealParams_omitsMealCodeByDefaultAndKeepsExplicitOverride() {
+  fun weeklyMealParams_doesNotFilterMealType() {
     val client = HttpNeisApiClient()
     val weekRange = fixedWeekRange()
 
-    val defaultParams = client.weeklyMealParams(NeisConfig("key", "B10", "7010536", ""), weekRange)
-    val lunchParams = client.weeklyMealParams(NeisConfig("key", "B10", "7010536", "2"), weekRange)
+    val params = client.weeklyMealParams(NeisConfig("key", "B10", "7010536"), weekRange)
 
-    assertFalse(defaultParams.containsKey("MMEAL_SC_CODE"))
-    assertEquals("2", lunchParams["MMEAL_SC_CODE"])
+    assertFalse(params.containsKey("MMEAL_SC_CODE"))
   }
 
   @Test
@@ -106,7 +104,7 @@ class NeisMealMapperTest {
     val client = RecordingNeisApiClient(emptyList())
     val repository =
       NeisMealRepository(
-        config = NeisConfig(apiKey = "", officeCode = "", schoolCode = "", mealCode = "2"),
+        config = NeisConfig(apiKey = "", officeCode = "", schoolCode = ""),
         fetchWeeklyMeals = client::fetchWeeklyMeals,
         todayProvider = { fixedDate() },
         ioDispatcher = UnconfinedTestDispatcher(testScheduler),
@@ -125,7 +123,7 @@ class NeisMealMapperTest {
   fun repository_emptyRowsReturnsNoDataFallback() = runTest {
     val repository =
       NeisMealRepository(
-        config = NeisConfig(apiKey = "key", officeCode = "B10", schoolCode = "7010536", mealCode = "2"),
+        config = NeisConfig(apiKey = "key", officeCode = "B10", schoolCode = "7010536"),
         fetchWeeklyMeals = RecordingNeisApiClient(emptyList())::fetchWeeklyMeals,
         todayProvider = { fixedDate() },
         ioDispatcher = UnconfinedTestDispatcher(testScheduler),

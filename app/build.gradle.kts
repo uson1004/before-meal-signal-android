@@ -69,10 +69,6 @@ androidComponents {
       "NEIS_SCHOOL_CODE",
       BuildConfigField("String", buildConfigString(localProperty("NEIS_SCHOOL_CODE")), "NEIS school code"),
     )
-    buildConfigFields.put(
-      "NEIS_MEAL_CODE",
-      BuildConfigField("String", buildConfigString(localProperty("NEIS_MEAL_CODE")), "NEIS meal code"),
-    )
   }
 }
 

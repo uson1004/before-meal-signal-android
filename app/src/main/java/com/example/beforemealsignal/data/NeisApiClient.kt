@@ -29,7 +29,6 @@ class HttpNeisApiClient(
       put("Type", "json")
       put("ATPT_OFCDC_SC_CODE", config.officeCode)
       put("SD_SCHUL_CODE", config.schoolCode)
-      if (config.mealCode.isNotBlank()) put("MMEAL_SC_CODE", config.mealCode)
       put("MLSV_FROM_YMD", weekRange.startYmd)
       put("MLSV_TO_YMD", weekRange.endYmd)
     }
