@@ -254,7 +254,6 @@ private fun HomeScreen(
         if (state.todayEstimated) BadgePill("추정 정보 포함", MealColors.Surface, MealColors.YellowDark, "i")
       }
     }
-    item { PreMealSignalHeader(state) }
     item { SectionTitle("오늘 급식") }
     item { MealPeriodPager(meal = state.todayMeal, selectedAllergens = state.selectedAllergens) }
     item { FoodSignalInfoCard(state) }
@@ -415,47 +414,6 @@ private fun ProfileScreen(
       SecondaryActionButton(
         label = if (state.local.notificationsEnabled) "알림 켜짐" else "알림 꺼짐",
         onClick = onNotificationsToggle,
-      )
-    }
-  }
-}
-
-@Composable
-private fun PreMealSignalHeader(state: MealSignalScreenState) {
-  Surface(
-    modifier = Modifier.fillMaxWidth(),
-    shape = RoundedCornerShape(MealDesignTokens.Radius.Hero),
-    color = MealColors.Navy,
-    shadowElevation = MealDesignTokens.Depth.Hero,
-    border = BorderStroke(1.dp, MealColors.NavySoft),
-  ) {
-    Column(
-      modifier =
-        Modifier
-          .fillMaxWidth()
-          .background(Brush.linearGradient(listOf(MealColors.Navy, MealColors.NavyDeep)))
-          .padding(22.dp),
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-      Surface(shape = RoundedCornerShape(MealDesignTokens.Radius.Pill), color = Color.White.copy(alpha = 0.12f)) {
-        Text(
-          "먹기 전 신호",
-          modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-          style = MaterialTheme.typography.labelLarge,
-          fontWeight = FontWeight.SemiBold,
-          color = MealColors.NavySoft,
-        )
-      }
-      Text(
-        "오늘 급식 먼저 확인해요",
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.SemiBold,
-        color = Color.White,
-      )
-      Text(
-        "${state.todayMeal.fullDateLabel} · ${state.todayMeal.mealType} · 10초 체크인",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MealColors.NavySoft,
       )
     }
   }

@@ -40,7 +40,6 @@ class MainScreenTest {
       }
     }
 
-    composeTestRule.onNodeWithText("오늘 급식 먼저 확인해요").assertIsDisplayed()
     composeTestRule.onNodeWithText("오늘 급식").assertIsDisplayed()
     composeTestRule.onNodeWithText("아침").assertIsDisplayed()
     composeTestRule.onNodeWithText("저녁").assertIsDisplayed()
