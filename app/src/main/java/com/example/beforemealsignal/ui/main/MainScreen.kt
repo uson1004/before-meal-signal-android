@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +68,7 @@ import com.example.beforemealsignal.data.ReportTarget
 import com.example.beforemealsignal.data.sampleDashboard
 import com.example.beforemealsignal.theme.BeforeMealSignalTheme
 import com.example.beforemealsignal.theme.MealDesignTokens
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
@@ -502,13 +504,18 @@ private fun MealPeriodPager(meal: MealDay, selectedAllergens: Set<String>) {
   val sections = meal.mealSections.ifEmpty { listOf(MealSection("점심", "중식", meal.menuItems)) }
   val initialPage = sections.indexOfFirst { it.menuItems.isNotEmpty() }.takeIf { it >= 0 } ?: 0
   val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { sections.size })
+  val scope = rememberCoroutineScope()
 
   Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       sections.forEachIndexed { index, section ->
         val selected = pagerState.currentPage == index
         Surface(
-          modifier = Modifier.weight(1f).height(38.dp),
+          modifier =
+            Modifier
+              .weight(1f)
+              .height(38.dp)
+              .clickable { scope.launch { pagerState.animateScrollToPage(index) } },
           shape = RoundedCornerShape(MealDesignTokens.Radius.Pill),
           color = if (selected) MealColors.GreenSoft else MealColors.Surface,
           border = BorderStroke(1.dp, if (selected) MealColors.Green else MealColors.Line),
