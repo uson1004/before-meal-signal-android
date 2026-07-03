@@ -110,6 +110,12 @@ val sampleDashboard =
           isToday = true,
           mealSections =
             mealSections(
+              breakfast =
+                listOf(
+                  MealItem("현미죽"),
+                  MealItem("김구이"),
+                  MealItem("사과"),
+                ),
               lunch =
                 listOf(
                   MealItem("잡곡밥"),
