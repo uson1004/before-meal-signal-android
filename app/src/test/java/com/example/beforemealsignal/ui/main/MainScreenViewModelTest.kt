@@ -22,6 +22,8 @@ class MainScreenViewModelTest {
     assertTrue(state.local.showOnboarding)
     assertEquals(setOf("계란", "우유"), state.selectedAllergens)
     assertEquals(1, state.spicyTolerance)
+    assertTrue(state.local.notificationsEnabled)
+    assertEquals("아침·점심·저녁 10분 전", state.reminderSummary)
   }
 
   @Test
@@ -48,6 +50,41 @@ class MainScreenViewModelTest {
     assertTrue(after.local.reportSubmitted)
     assertEquals(before.reportCount + 1, after.reportCount)
     assertEquals(before.streakDays + 1, after.streakDays)
+  }
+
+  @Test
+  fun onNotificationsToggle_updatesReminderSummary() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
+
+    viewModel.onNotificationsToggle()
+    val state = viewModel.successState { !it.local.notificationsEnabled }
+
+    assertEquals("알림 꺼짐", state.reminderSummary)
+  }
+
+  @Test
+  fun onReminderMealToggled_keepsAtLeastOneMealPeriod() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
+
+    viewModel.onReminderMealToggled("아침")
+    viewModel.onReminderMealToggled("점심")
+    viewModel.onReminderMealToggled("저녁")
+    val state = viewModel.successState { it.local.reminderSettings.mealPeriods == setOf("저녁") }
+
+    assertEquals(setOf("저녁"), state.local.reminderSettings.mealPeriods)
+    assertEquals("저녁 10분 전", state.reminderSummary)
+  }
+
+  @Test
+  fun onReminderLeadSelected_acceptsOnlySupportedLeadTimes() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
+
+    viewModel.onReminderLeadSelected(20)
+    viewModel.onReminderLeadSelected(5)
+    val state = viewModel.successState { it.local.reminderSettings.leadMinutes == 20 }
+
+    assertEquals(20, state.local.reminderSettings.leadMinutes)
+    assertEquals("아침·점심·저녁 20분 전", state.reminderSummary)
   }
 }
 
