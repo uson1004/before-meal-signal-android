@@ -131,7 +131,9 @@ object NeisMealMapper {
   private fun reportTargets(weekMeals: List<MealDay>): List<ReportTarget> =
     weekMeals
       .firstOrNull { it.isToday }
-      ?.menuItems
+      ?.let { today ->
+        today.mealSections.firstOrNull { it.displayName == "점심" && it.menuItems.isNotEmpty() }?.menuItems ?: today.menuItems
+      }
       .orEmpty()
       .take(3)
       .map { ReportTarget(it.name, "오늘 급식에서 체감 매운맛이나 알레르기 표시를 알려주세요.") }

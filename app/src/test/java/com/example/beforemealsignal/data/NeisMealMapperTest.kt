@@ -125,6 +125,23 @@ class NeisMealMapperTest {
   }
 
   @Test
+  fun dashboard_prefersLunchForReportTargets() {
+    val dashboard =
+      NeisMealMapper.dashboard(
+        rows =
+          listOf(
+            NeisMealRow("선린인터넷고등학교", "조식", "20260701", "시리얼<br/>사과"),
+            NeisMealRow("선린인터넷고등학교", "중식", "20260701", "잡곡밥<br/>제육볶음"),
+            NeisMealRow("선린인터넷고등학교", "석식", "20260701", "김치볶음밥"),
+          ),
+        weekRange = fixedWeekRange(),
+        sourceLabel = "NEIS 실시간 연동",
+      )
+
+    assertEquals(listOf("잡곡밥", "제육볶음"), dashboard.reportTargets.map { it.menuName })
+  }
+
+  @Test
   fun fallbackDashboard_keepsWeekMealsAndReportTargetsNonEmpty() {
     val weekRange = fixedWeekRange()
 
