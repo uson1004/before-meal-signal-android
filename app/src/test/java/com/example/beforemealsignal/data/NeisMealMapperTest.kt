@@ -85,6 +85,26 @@ class NeisMealMapperTest {
   }
 
   @Test
+  fun dashboard_normalizesMealNamesBeforeGroupingSections() {
+    val dashboard =
+      NeisMealMapper.dashboard(
+        rows =
+          listOf(
+            NeisMealRow("선린인터넷고등학교", " 중식 ", "20260701", "잡곡밥"),
+            NeisMealRow("선린인터넷고등학교", "석식(고)", "20260701", "김치볶음밥"),
+          ),
+        weekRange = fixedWeekRange(),
+        sourceLabel = "NEIS 실시간 연동",
+      )
+
+    val today = dashboard.weekMeals.first { it.isToday }
+
+    assertEquals(listOf("아침", "점심", "저녁"), today.mealSections.map { it.displayName })
+    assertEquals(listOf("잡곡밥"), today.mealSections[1].menuItems.map { it.name })
+    assertEquals(listOf("김치볶음밥"), today.mealSections[2].menuItems.map { it.name })
+  }
+
+  @Test
   fun fallbackDashboard_keepsWeekMealsAndReportTargetsNonEmpty() {
     val weekRange = fixedWeekRange()
 

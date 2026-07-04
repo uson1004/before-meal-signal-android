@@ -138,7 +138,7 @@ object NeisMealMapper {
       .ifEmpty { listOf(ReportTarget("급식 정보 없음", "NEIS 급식 데이터를 불러오지 못했어요.")) }
 
   private fun mealSections(dayRows: List<NeisMealRow>): List<MealSection> {
-    val rowsByMeal = dayRows.groupBy { it.mealName.ifBlank { "중식" } }
+    val rowsByMeal = dayRows.groupBy { canonicalMealName(it.mealName) }
     val knownSections =
       mealOrder.map { mealName ->
         MealSection(
@@ -161,6 +161,14 @@ object NeisMealMapper {
         }
     return knownSections + extraSections
   }
+
+  private fun canonicalMealName(mealName: String): String =
+    when {
+      "조식" in mealName -> "조식"
+      "중식" in mealName -> "중식"
+      "석식" in mealName -> "석식"
+      else -> mealName.trim().ifBlank { "중식" }
+    }
 
   private fun emptyMealSections(): List<MealSection> =
     mealOrder.map { mealName -> MealSection(displayName = mealDisplayName(mealName), mealType = mealName, menuItems = emptyList()) }
