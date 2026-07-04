@@ -86,6 +86,31 @@ class MainScreenViewModelTest {
     assertEquals(20, state.local.reminderSettings.leadMinutes)
     assertEquals("아침·점심·저녁 20분 전", state.reminderSummary)
   }
+
+  @Test
+  fun reminderSummary_usesOnlyServedMealPeriods() = runTest {
+    val lunchOnlyDashboard =
+      sampleDashboard.copy(
+        weekMeals =
+          sampleDashboard.weekMeals.map { meal ->
+            if (!meal.isToday) {
+              meal
+            } else {
+              meal.copy(
+                mealSections =
+                  meal.mealSections.map { section ->
+                    if (section.displayName == "점심") section else section.copy(menuItems = emptyList())
+                  },
+              )
+            }
+          },
+      )
+    val viewModel = MainScreenViewModel(FakeMealRepository(lunchOnlyDashboard))
+
+    val state = viewModel.successState()
+
+    assertEquals("점심 10분 전", state.reminderSummary)
+  }
 }
 
 private suspend fun MainScreenViewModel.successState(
@@ -93,6 +118,8 @@ private suspend fun MainScreenViewModel.successState(
 ): MealSignalScreenState =
   (uiState.first { it is MainScreenUiState.Success && predicate(it.state) } as MainScreenUiState.Success).state
 
-private class FakeMealRepository : DataRepository {
-  override val dashboard: Flow<MealSignalDashboard> = flowOf(sampleDashboard)
+private class FakeMealRepository(
+  dashboard: MealSignalDashboard = sampleDashboard,
+) : DataRepository {
+  override val dashboard: Flow<MealSignalDashboard> = flowOf(dashboard)
 }
