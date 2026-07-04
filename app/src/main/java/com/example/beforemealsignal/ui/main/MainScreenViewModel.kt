@@ -86,7 +86,32 @@ class MainScreenViewModel(dataRepository: DataRepository) : ViewModel() {
   }
 
   fun onNotificationsToggle() {
-    prototypeState.update { it.copy(notificationsEnabled = !it.notificationsEnabled) }
+    prototypeState.update { state ->
+      state.copy(reminderSettings = state.reminderSettings.copy(enabled = !state.reminderSettings.enabled))
+    }
+  }
+
+  fun onReminderMealToggled(mealPeriod: String) {
+    if (mealPeriod !in reminderMealPeriodOptions) return
+
+    prototypeState.update { state ->
+      val current = state.reminderSettings.mealPeriods
+      val next =
+        if (mealPeriod in current) {
+          current.minus(mealPeriod).ifEmpty { current }
+        } else {
+          current + mealPeriod
+        }
+      state.copy(reminderSettings = state.reminderSettings.copy(mealPeriods = next))
+    }
+  }
+
+  fun onReminderLeadSelected(minutes: Int) {
+    if (minutes !in reminderLeadOptions) return
+
+    prototypeState.update { state ->
+      state.copy(reminderSettings = state.reminderSettings.copy(leadMinutes = minutes))
+    }
   }
 }
 
@@ -112,7 +137,26 @@ data class MealSignalScreenState(
   val todayEstimated: Boolean = todayMeal.menuItems.any { it.isEstimated }
   val todaySpicyLevel: Int = todayMeal.menuItems.maxOfOrNull { it.spicyLevel } ?: 0
   val riskMenuName: String? = todayMeal.menuItems.firstOrNull { item -> item.allergens.any { it in selectedAllergens } }?.name
+  val activeReminderPeriods: List<String> =
+    if (local.reminderSettings.enabled) {
+      val servedPeriods = todayMeal.mealSections.filter { it.menuItems.isNotEmpty() }.map { it.displayName }.toSet()
+      reminderMealPeriodOptions.filter { it in local.reminderSettings.mealPeriods && it in servedPeriods }
+    } else {
+      emptyList()
+    }
+  val reminderSummary: String =
+    when {
+      !local.reminderSettings.enabled -> "알림 꺼짐"
+      activeReminderPeriods.isEmpty() -> "오늘 알림 없음"
+      else -> "${activeReminderPeriods.joinToString("·")} ${local.reminderSettings.leadMinutes}분 전"
+    }
 }
+
+data class MealReminderSettings(
+  val enabled: Boolean = true,
+  val mealPeriods: Set<String> = setOf("아침", "점심", "저녁"),
+  val leadMinutes: Int = 10,
+)
 
 data class MealPrototypeState(
   val showOnboarding: Boolean = true,
@@ -125,8 +169,11 @@ data class MealPrototypeState(
   val photoAttached: Boolean = false,
   val reportSubmitted: Boolean = false,
   val submittedReports: Int = 0,
-  val notificationsEnabled: Boolean = true,
-)
+  val reminderSettings: MealReminderSettings = MealReminderSettings(),
+) {
+  val notificationsEnabled: Boolean
+    get() = reminderSettings.enabled
+}
 
 enum class MealTab(val label: String) {
   Home("홈"),
@@ -146,3 +193,7 @@ fun MealItem.statusLabel(selectedAllergens: Set<String>): String =
     spicyLevel == 1 -> "약간매움"
     else -> "표시없음"
   }
+
+val reminderMealPeriodOptions: List<String> = listOf("아침", "점심", "저녁")
+
+val reminderLeadOptions: List<Int> = listOf(10, 20, 30)
