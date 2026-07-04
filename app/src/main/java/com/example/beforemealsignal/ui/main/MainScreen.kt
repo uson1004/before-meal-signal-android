@@ -335,7 +335,7 @@ private fun ReportScreen(
   onSubmit: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
-  val target = state.dashboard.reportTargets.first()
+  val target = state.dashboard.reportTargets.firstOrNull() ?: emptyReportTarget
   LazyColumn(
     modifier = modifier.fillMaxSize().mealBackdrop(),
     contentPadding = PaddingValues(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 24.dp),
@@ -1070,6 +1070,8 @@ private fun TagTone.colors(): TagColors =
     TagTone.Yellow -> TagColors(MealColors.YellowSoft, MealColors.YellowDark)
     TagTone.Neutral -> TagColors(MealColors.SurfaceAlt, MealColors.Muted)
   }
+
+private val emptyReportTarget = ReportTarget("급식 정보 없음", "제보할 급식 데이터가 아직 없어요.")
 
 private object MealColors {
   val Background = MealDesignTokens.Colors.Canvas

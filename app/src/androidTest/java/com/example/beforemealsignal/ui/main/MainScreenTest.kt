@@ -66,4 +66,21 @@ class MainScreenTest {
     composeTestRule.onNodeWithText("아침·점심·저녁 10분 전").assertIsDisplayed()
     composeTestRule.onNodeWithText("20분 전").assertIsDisplayed()
   }
+
+  @Test
+  fun reportScreen_handlesEmptyReportTargets() {
+    composeTestRule.setContent {
+      BeforeMealSignalTheme {
+        MainScreen(
+          state =
+            MealSignalScreenState(
+              dashboard = sampleDashboard.copy(reportTargets = emptyList()),
+              local = MealPrototypeState(showOnboarding = false, activeTab = MealTab.Report),
+            ),
+        )
+      }
+    }
+
+    composeTestRule.onNodeWithText("급식 정보 없음 - 체감 매운맛").assertIsDisplayed()
+  }
 }
