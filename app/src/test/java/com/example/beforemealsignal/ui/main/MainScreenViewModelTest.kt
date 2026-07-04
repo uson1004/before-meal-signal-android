@@ -122,6 +122,16 @@ class MainScreenViewModelTest {
     assertEquals(setOf("아침", "점심", "저녁"), state.local.reminderSettings.mealPeriods)
     assertEquals("아침·점심·저녁 10분 전", state.reminderSummary)
   }
+
+  @Test
+  fun uiState_handlesEmptyWeekMeals() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository(sampleDashboard.copy(weekMeals = emptyList())))
+
+    val state = viewModel.successState()
+
+    assertTrue(state.todayMeal.menuItems.isEmpty())
+    assertEquals("오늘 알림 없음", state.reminderSummary)
+  }
 }
 
 private suspend fun MainScreenViewModel.successState(

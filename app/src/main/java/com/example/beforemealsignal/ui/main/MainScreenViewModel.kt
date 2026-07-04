@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.beforemealsignal.data.DataRepository
 import com.example.beforemealsignal.data.MealDay
 import com.example.beforemealsignal.data.MealItem
+import com.example.beforemealsignal.data.MealSection
 import com.example.beforemealsignal.data.MealSignalDashboard
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -131,7 +132,7 @@ data class MealSignalScreenState(
   val spicyTolerance: Int = local.spicyTolerance ?: dashboard.profile.spicyTolerance
   val streakDays: Int = dashboard.profile.streakDays + local.submittedReports
   val reportCount: Int = dashboard.profile.reportCount + local.submittedReports
-  val todayMeal: MealDay = dashboard.weekMeals.firstOrNull { it.isToday } ?: dashboard.weekMeals.first()
+  val todayMeal: MealDay = dashboard.weekMeals.firstOrNull { it.isToday } ?: dashboard.weekMeals.firstOrNull() ?: emptyMealDay
   val selectedMeal: MealDay = dashboard.weekMeals.getOrElse(local.selectedDayIndex) { todayMeal }
   val todayMatchedAllergens: List<String> = todayMeal.matchedAllergens(selectedAllergens)
   val todayEstimated: Boolean = todayMeal.menuItems.any { it.isEstimated }
@@ -197,3 +198,17 @@ fun MealItem.statusLabel(selectedAllergens: Set<String>): String =
 val reminderMealPeriodOptions: List<String> = listOf("아침", "점심", "저녁")
 
 val reminderLeadOptions: List<Int> = listOf(10, 20, 30)
+
+private val emptyMealDay =
+  MealDay(
+    dateLabel = "오늘",
+    fullDateLabel = "오늘",
+    dayBadge = "-",
+    isToday = true,
+    mealSections =
+      listOf(
+        MealSection(displayName = "아침", mealType = "조식", menuItems = emptyList()),
+        MealSection(displayName = "점심", mealType = "중식", menuItems = emptyList()),
+        MealSection(displayName = "저녁", mealType = "석식", menuItems = emptyList()),
+      ),
+  )
