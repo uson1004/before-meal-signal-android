@@ -111,6 +111,17 @@ class MainScreenViewModelTest {
 
     assertEquals("점심 10분 전", state.reminderSummary)
   }
+
+  @Test
+  fun onReminderMealToggled_ignoresUnknownMealPeriod() = runTest {
+    val viewModel = MainScreenViewModel(FakeMealRepository())
+
+    viewModel.onReminderMealToggled("야식")
+    val state = viewModel.successState()
+
+    assertEquals(setOf("아침", "점심", "저녁"), state.local.reminderSettings.mealPeriods)
+    assertEquals("아침·점심·저녁 10분 전", state.reminderSummary)
+  }
 }
 
 private suspend fun MainScreenViewModel.successState(
