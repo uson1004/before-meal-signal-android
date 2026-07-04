@@ -83,4 +83,29 @@ class MainScreenTest {
 
     composeTestRule.onNodeWithText("급식 정보 없음 - 체감 매운맛").assertIsDisplayed()
   }
+
+  @Test
+  fun weekScreen_handlesEmptyMealSummaries() {
+    val emptyWeekDashboard =
+      sampleDashboard.copy(
+        weekMeals =
+          sampleDashboard.weekMeals.map { meal ->
+            meal.copy(mealSections = meal.mealSections.map { section -> section.copy(menuItems = emptyList()) })
+          },
+      )
+
+    composeTestRule.setContent {
+      BeforeMealSignalTheme {
+        MainScreen(
+          state =
+            MealSignalScreenState(
+              dashboard = emptyWeekDashboard,
+              local = MealPrototypeState(showOnboarding = false, activeTab = MealTab.Week),
+            ),
+        )
+      }
+    }
+
+    assertTrue(composeTestRule.onAllNodesWithText("등록된 급식 정보가 없어요.").fetchSemanticsNodes().isNotEmpty())
+  }
 }

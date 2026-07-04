@@ -578,7 +578,7 @@ private fun MealPeriodCard(section: MealSection, selectedAllergens: Set<String>)
     }
     if (section.menuItems.isEmpty()) {
       Box(modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp), contentAlignment = Alignment.CenterStart) {
-        Text("등록된 급식 정보가 없어요.", style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
+        Text(emptyMealSummary, style = MaterialTheme.typography.bodyMedium, color = MealColors.Muted)
       }
     } else {
       section.menuItems.forEachIndexed { index, item ->
@@ -620,7 +620,7 @@ private fun TimelineMealCard(
       Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(meal.dateLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.ExtraBold, color = if (meal.isToday) MealColors.Coral else MealColors.Muted)
         Text(
-          meal.menuItems.joinToString(" · ") { it.name },
+          meal.timelineSummary(),
           maxLines = 2,
           overflow = TextOverflow.Ellipsis,
           style = MaterialTheme.typography.titleMedium,
@@ -1072,6 +1072,10 @@ private fun TagTone.colors(): TagColors =
   }
 
 private val emptyReportTarget = ReportTarget("급식 정보 없음", "제보할 급식 데이터가 아직 없어요.")
+
+private const val emptyMealSummary = "등록된 급식 정보가 없어요."
+
+private fun MealDay.timelineSummary(): String = menuItems.joinToString(" · ") { it.name }.ifBlank { emptyMealSummary }
 
 private object MealColors {
   val Background = MealDesignTokens.Colors.Canvas
