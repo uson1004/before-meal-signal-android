@@ -95,6 +95,8 @@ fun MainScreen(
         onSubmitReport = viewModel::onSubmitReport,
         onEditProfile = viewModel::onEditProfile,
         onNotificationsToggle = viewModel::onNotificationsToggle,
+        onReminderMealToggled = viewModel::onReminderMealToggled,
+        onReminderLeadSelected = viewModel::onReminderLeadSelected,
         modifier = modifier,
       )
     is MainScreenUiState.Error -> ErrorScreen(current.throwable, modifier)
@@ -117,6 +119,8 @@ internal fun MainScreen(
   onSubmitReport: () -> Unit = {},
   onEditProfile: () -> Unit = {},
   onNotificationsToggle: () -> Unit = {},
+  onReminderMealToggled: (String) -> Unit = {},
+  onReminderLeadSelected: (Int) -> Unit = {},
 ) {
   if (state.local.showOnboarding) {
     OnboardingScreen(
@@ -162,6 +166,8 @@ internal fun MainScreen(
           state = state,
           onEditProfile = onEditProfile,
           onNotificationsToggle = onNotificationsToggle,
+          onReminderMealToggled = onReminderMealToggled,
+          onReminderLeadSelected = onReminderLeadSelected,
           modifier = Modifier.padding(innerPadding),
         )
     }
@@ -383,6 +389,8 @@ private fun ProfileScreen(
   state: MealSignalScreenState,
   onEditProfile: () -> Unit,
   onNotificationsToggle: () -> Unit,
+  onReminderMealToggled: (String) -> Unit,
+  onReminderLeadSelected: (Int) -> Unit,
   modifier: Modifier = Modifier,
 ) {
   LazyColumn(
@@ -411,13 +419,15 @@ private fun ProfileScreen(
         ProfileTable(state)
       }
     }
-    item { ShadowButton("알레르기 정보 수정", onClick = onEditProfile, container = MealColors.Coral, shadow = MealColors.CoralDark) }
     item {
-      SecondaryActionButton(
-        label = if (state.local.notificationsEnabled) "알림 켜짐" else "알림 꺼짐",
-        onClick = onNotificationsToggle,
+      ReminderSettingsCard(
+        state = state,
+        onNotificationsToggle = onNotificationsToggle,
+        onMealToggled = onReminderMealToggled,
+        onLeadSelected = onReminderLeadSelected,
       )
     }
+    item { ShadowButton("알레르기 정보 수정", onClick = onEditProfile, container = MealColors.Coral, shadow = MealColors.CoralDark) }
   }
 }
 
@@ -681,6 +691,46 @@ private fun ProfileTable(state: MealSignalScreenState) {
       }
       if (index != rows.lastIndex) DividerLine()
     }
+  }
+}
+
+@Composable
+private fun ReminderSettingsCard(
+  state: MealSignalScreenState,
+  onNotificationsToggle: () -> Unit,
+  onMealToggled: (String) -> Unit,
+  onLeadSelected: (Int) -> Unit,
+) {
+  SectionCard {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+      SectionTitle("식전 알림", compact = true)
+      Tag(label = state.reminderSummary, tone = if (state.local.notificationsEnabled) TagTone.Green else TagTone.Neutral)
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      reminderMealPeriodOptions.forEach { mealPeriod ->
+        SelectChip(
+          label = mealPeriod,
+          selected = mealPeriod in state.local.reminderSettings.mealPeriods,
+          onClick = { onMealToggled(mealPeriod) },
+          modifier = Modifier.weight(1f),
+        )
+      }
+    }
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      reminderLeadOptions.forEach { minutes ->
+        SelectChip(
+          label = "${minutes}분 전",
+          selected = state.local.reminderSettings.leadMinutes == minutes,
+          onClick = { onLeadSelected(minutes) },
+          modifier = Modifier.weight(1f),
+          singleChoice = true,
+        )
+      }
+    }
+    SecondaryActionButton(
+      label = if (state.local.notificationsEnabled) "알림 끄기" else "알림 켜기",
+      onClick = onNotificationsToggle,
+    )
   }
 }
 
