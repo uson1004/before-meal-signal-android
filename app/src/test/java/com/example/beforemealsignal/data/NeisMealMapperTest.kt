@@ -52,6 +52,26 @@ class NeisMealMapperTest {
   }
 
   @Test
+  fun parseMealRows_readsEveryRowArrayInEnvelope() {
+    val body =
+      """
+      {
+        "mealServiceDietInfo": [
+          { "head": [{ "list_total_count": 2 }] },
+          { "row": [{ "MMEAL_SC_NM": "조식", "MLSV_YMD": "20260701", "DDISH_NM": "시리얼" }] },
+          { "row": [{ "MMEAL_SC_NM": "석식", "MLSV_YMD": "20260701", "DDISH_NM": "김치볶음밥" }] }
+        ]
+      }
+      """
+        .trimIndent()
+
+    val rows = HttpNeisApiClient().parseMealRows(body)
+
+    assertEquals(listOf("조식", "석식"), rows.map { it.mealName })
+    assertEquals(listOf("시리얼", "김치볶음밥"), rows.map { it.dishName })
+  }
+
+  @Test
   fun weeklyMealParams_doesNotFilterMealType() {
     val client = HttpNeisApiClient()
     val weekRange = fixedWeekRange()

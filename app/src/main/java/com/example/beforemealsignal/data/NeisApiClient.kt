@@ -60,7 +60,7 @@ class HttpNeisApiClient(
   fun parseMealRows(responseBody: String): List<NeisMealRow> {
     val root = runCatching { json.parseToJsonElement(responseBody).jsonObject }.getOrNull() ?: return emptyList()
     val sections = root["mealServiceDietInfo"] as? JsonArray ?: return emptyList()
-    val rows = sections.firstNotNullOfOrNull { section -> section.jsonObjectOrNull()?.get("row") as? JsonArray } ?: return emptyList()
+    val rows = sections.mapNotNull { section -> section.jsonObjectOrNull()?.get("row") as? JsonArray }.flatMap { it }
 
     return rows.mapNotNull { element ->
       val row = element.jsonObjectOrNull() ?: return@mapNotNull null
